@@ -1,0 +1,7 @@
+boto3
+fastapi
+uvicorn
+google-api-python-client
+python-dotenv
+schedule
+requests

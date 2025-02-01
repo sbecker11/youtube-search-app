@@ -1,0 +1,11 @@
+{
+    "queries": [
+        "Python programming",
+        "Machine learning",
+        "Data science"
+    ],
+    "schedule": {
+        "interval": "hour",  // Options: "hour", "day"
+        "time": "10:00"      // Used if interval is "day"
+    }
+}

@@ -1,0 +1,34 @@
+{
+    "kind": "youtube#searchResult",
+    "etag": "faa3w7_zFTMV_zLPRRywKwsVv3M",
+    "id": {
+        "kind": "youtube#video",
+        "videoId": "FRrdo86LPEk"
+    },
+    "snippet": {
+        "publishedAt": "2019-08-16T04:00:00Z",
+        "channelId": "UCuwdplPbuTFZj_64d03tSBA",
+        "title": "Young Thug - Surf ft. Gunna (Official Audio)",
+        "description": "Young Thug - Surf Stream So Much Fun Now! https://youngthug.ffm.to/somuchfun Listen to So Much Fun on Youtube Music: ...",
+        "thumbnails": {
+            "default": {
+                "url": "https://i.ytimg.com/vi/FRrdo86LPEk/default.jpg",
+                "width": 120,
+                "height": 90
+            },
+            "medium": {
+                "url": "https://i.ytimg.com/vi/FRrdo86LPEk/mqdefault.jpg",
+                "width": 320,
+                "height": 180
+            },
+            "high": {
+                "url": "https://i.ytimg.com/vi/FRrdo86LPEk/hqdefault.jpg",
+                "width": 480,
+                "height": 360
+            }
+        },
+        "channelTitle": "Young Thug",
+        "liveBroadcastContent": "none",
+        "publishTime": "2019-08-16T04:00:00Z"
+    }
+}

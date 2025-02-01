@@ -1,0 +1,27 @@
+{
+    "TableName": "Resources",
+    "KeySchema": [
+      {
+        "AttributeName": "id.videoId",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "id.channelId",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "id.videoId",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "id.channelId",
+        "AttributeType": "S"
+      }
+    ],
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 5,
+      "WriteCapacityUnits": 5
+    }
+}
