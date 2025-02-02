@@ -26,6 +26,24 @@ class YouTubeStorage:
         self.responses_table = YouTubeTable(responses_table_name, endpoint_url=endpoint_url)
         self.snippets_table = YouTubeTable(snippets_table_name, endpoint_url=endpoint_url)
 
+    def find_all_subjects(self) -> List[str]:
+        """ return a list of all unique subjects found among all responses sorted by submittedOn ascending """
+        query = "SELECT DISTINCT subject FROM {} ORDER BY requestSubmittedAt ASC".format(self.responses_table.table_name)
+        subjects = self.responses_table.execute_query(query)
+        return [subject['subject'] for subject in subjects]
+
+    def find_responses_by_subject(self, subject: str) -> List[Dict[str, str]]:
+        """ return a list of responses that contained the given subject in its request """
+        query = "SELECT * FROM {} WHERE subject = '{}'".format(self.responses_table.table_name, subject)
+        responses = self.responses_table.execute_query(query)
+        return responses
+
+    def find_snippets_by_response(self, response_id: str) -> List[Dict[str, str]]:
+        """ return a list of all snippets of a given response """
+        query = "SELECT * FROM {} WHERE responseId = '{}'".format(self.snippets_table.table_name, response_id)
+        snippets = self.snippets_table.execute_query(query)
+        return snippets
+
     def get_response_row(self, youtube_response: Dict[str, str], youtube_query: Dict[str, str]) -> Dict[str, str]:
         response_id = str(uuid.uuid4())  # Generate a unique primary key
         response_row = {
