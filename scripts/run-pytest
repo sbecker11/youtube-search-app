@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Add project-root/src to PYTHONPATH if it's not already present
+if [[ ":$PYTHONPATH:" != *":$(pwd)/src:"* ]]; then
+    export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+fi
+echo "PYTHONPATH $PYTHONPATH"
+
+# Install dependencies
+pip install -r requirements.txt
+pip install pytest-docker-compose
+
+# Run pytest
+pytest tests
+
+# Deactivate virtual environment
+deactivate
+

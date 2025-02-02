@@ -2,7 +2,7 @@ Overview
 
 This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. Dockerfile and docker-compose.yml are used to deploy assets to DockerDesktop.
 
-YoutubeQueryEngine from youtube_query_engine.py sends a variety of search queries to YouTubeMetadataAPI
+YouTubeQuery from youtube_query.py sends a variety of search queries to YouTubeMetadataAPI
 
 Search query results are stored in DynamoDb tables using DynamoPersistenceEngine from dynamo_persistence_engine.py
 
@@ -12,7 +12,8 @@ Credentials for YouTube and AWS are stored in a local .env file, which is never 
 
 Docker configuration files are found at project root. Python source modules are found at project root. Pytest modules are found in /tests OpenAPI documentation files are found in /docs.
 
-
+important links:
+sssss
 
 
 Architecture
@@ -22,7 +23,7 @@ dynamodb engine
   using metadata
 
 query parameters
-youtube_query_engine
+youtube_query
   builds search_videos query using easy_api_wrapper
   submits query request to YouTubeMetadataApi
   search videos response

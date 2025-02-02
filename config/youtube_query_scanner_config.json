@@ -1,0 +1,15 @@
+{
+    "queries": [
+        "SpaceX",
+        "Tiny LLMs",
+        "Agentful use cases"
+    ],
+    "schedule": {
+        "interval": "hour",
+        "time": "10:00"
+    },
+    "comments": {
+        "interval-options": "can use 'hour' or 'day'",
+        "time-options": "used if interval is 'day'"
+    }
+}

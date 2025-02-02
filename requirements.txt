@@ -1,7 +1,10 @@
-boto3
-fastapi
-uvicorn
-google-api-python-client
-python-dotenv
-schedule
+pytest>=3.3
+pytest-docker-compose
+PyYAML<6,>=3.10
 requests
+flask
+pandas
+numpy
+wheel
+-c constraints.txt
+

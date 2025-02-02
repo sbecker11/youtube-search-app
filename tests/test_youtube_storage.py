@@ -1,6 +1,6 @@
 import os
 import pytest
-from moto import mock_dynamodb2
+from moto import mock_dynamodb
 from boto3.exceptions import ClientError
 
 import boto3
@@ -10,7 +10,7 @@ from ..src.dynamo_persistence_engine import DynamoPersistenceEngine
 
 @pytest.fixture
 def dynamo_mock():
-    with mock_dynamodb2():
+    with mock_dynamodb():
         yield
 
 @pytest.fixture

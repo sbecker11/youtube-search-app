@@ -1,0 +1,19 @@
+{
+    "TableName": "Responses",
+    "KeySchema": [
+      {
+        "AttributeName": "etag",
+        "KeyType": "HASH"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "etag",
+        "AttributeType": "S"
+      }
+    ],
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 5,
+      "WriteCapacityUnits": 5
+    }
+}
