@@ -8,17 +8,14 @@ services:
     environment:
       - SERVICES=dynamodb
 
-  rest_api:
+  youtube_storage_api:
     build: .
-    command: uvicorn src.rest_api:app --host 0.0.0.0 --port 8000
+    command: uvicorn src.youtube_storage_api:app --host 0.0.0.0 --port 8000
     volumes:
       - .:/app
     ports:
       - "8000:8000"
     environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
     env_file:
       - .env
@@ -30,11 +27,6 @@ services:
     command: python src/youtube_query_scanner.py
     volumes:
       - .:/app
-    environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
-      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
     env_file:
       - .env
     depends_on:

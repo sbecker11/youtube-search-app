@@ -6,15 +6,11 @@ class TestYouTubeQuery(unittest.TestCase):
 
     @patch('youtube_query.build')
     @patch('youtube_query.YouTubeStorage')
-    def setUp(self, MockYouTubeStorage, MockBuild):
+    def setUp(self):
         self.mock_youtube = MagicMock()
-        MockBuild.return_value = self.mock_youtube
-        self.mock_storage = MockYouTubeStorage.return_value
-        self.youtube_query = YouTubeQuery(
-            youtube_api_key='fake_api_key',
-            responses_table_name='Responses',
-            snippets_table_name='Snippets'
-        )
+        self.mock_build.return_value = YouTubeQuery()
+        self.mock_storage = MagicMock()
+        self.youtube_query = YouTubeQuery()
 
     def test_search_success(self):
         mock_response = {
@@ -27,6 +23,8 @@ class TestYouTubeQuery(unittest.TestCase):
                 "resultsPerPage": 3
             }
         }
+        self.mock.mock_youtube_storage.return_value = TestYouTubStorage
+        self.mock.mock_build.return_value = TestYouTubeQuery
         self.mock_youtube.search().list().execute.return_value = mock_response
 
         self.youtube_query.search('test_subject')

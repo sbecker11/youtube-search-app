@@ -1,5 +1,6 @@
 {
     "TableName": "Snippets",
+
     "KeySchema": [
       {
         "AttributeName": "snippet.channelId",

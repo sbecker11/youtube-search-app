@@ -1,5 +1,15 @@
 {
     "python.analysis.extraPaths": [
         "${workspaceFolder}/src"
-    ]
+    ],
+    "python.envFile": "${workspaceFolder}/.env",
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}/tests"
+    },
+    "terminal.integrated.env.osx": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}/tests"
+    },
+    "terminal.integrated.env.windows": {
+        "PYTHONPATH": "${workspaceFolder}\\src;${workspaceFolder}\\tests"
+    }
 }

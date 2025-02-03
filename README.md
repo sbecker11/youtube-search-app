@@ -13,7 +13,7 @@ Credentials for YouTube and AWS are stored in a local .env file, which is never 
 Docker configuration files are found at project root. Python source modules are found at project root. Pytest modules are found in /tests OpenAPI documentation files are found in /docs.
 
 important links:
-sssss
+http://localhost:8000 link to the YouTubeStorageApi
 
 
 Architecture

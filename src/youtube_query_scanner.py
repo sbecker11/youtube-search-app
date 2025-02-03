@@ -1,12 +1,21 @@
+# pylint: disable=W1203 # Use lazy % formatting in logging functions
+
 import json
+import logging
 import os
 import time
-from dotenv import load_dotenv
+
 import schedule
+from dotenv import load_dotenv
+
 from youtube_query import YouTubeQuery
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class YouTubeQueryScanner:
     def __init__(self):
@@ -17,7 +26,7 @@ class YouTubeQueryScanner:
         self.endpoint_url = os.getenv('ENDPOINT_URL', 'http://localhost:4566')  # Default to 'http://localhost:4566' if not set
         self.config_file = 'youtube_query_scanner_config.json'
         self.config = self.load_config(self.config_file)
-        self.engine = YouTubeQuery(self.youtube_api_key, config_url=self.config_url, endpoint_url=self.endpoint_url)
+        self.engine = YouTubeQuery()
 
     def load_config(self, config_file):
         with open(config_file, 'r', encoding='utf-8') as file:
@@ -26,7 +35,11 @@ class YouTubeQueryScanner:
     def run_queries(self, queries):
         for query in queries:
             try:
-                self.engine.search(query['query'], subject=query['subject'])
+                subject = query['subject']
+                logger.info(f"Starting query subject: {subject}")
+                self.engine.search( subject=query['subject'])
+                logger.info(f"Finished query subject: {subject}")
+
             except ValueError as error:
                 print(f"Error running query {query['query']}: {error}")
 

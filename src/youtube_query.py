@@ -1,29 +1,31 @@
+# pylint: disable=W1203 # Use lazy % formatting in logging functions
+# pylint: disable=E1101 # Instance has no 'xxx' member
+# pylint: disable=all   # another option
+
+import os
 from datetime import datetime
+import logging
+
+from dotenv import load_dotenv
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
 from youtube_storage import YouTubeStorage
 
+load_dotenv()
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 class YouTubeQuery:
-    """Submits queries to YouTube metadata API
+    """ Submits queries to YouTube metadata API
         and stores each query request and its
         query response details to YouTubeStorage.
     """
-    def __init__(self,
-                 youtube_api_key,
-                 responses_table_name=None,
-                 snippets_table_name=None,
-                 config_url=None,
-                 endpoint_url=None):
-        """
-        Args:
-            youtube_api_key (str): youtube developer API key
-            responses_table_name (str, optional): table used to store query requests and responses. Defaults to None.
-            snippets_table_name (str, optional): used to store query result snippets. Defaults to None.
-            config_url (str, optional): . url used to retrieve table configurations. Defaults to None.
-            endpoint_url (str, optional): url used to submit queries. Defaults to None.
-        """
+    def __init__(self):
+        youtube_api_key = os.getenv("YOUTUBE_API_KEY")
         self.youtube = build('youtube', 'v3', developerKey=youtube_api_key)
-        self.youtube_storage = YouTubeStorage(responses_table_name, snippets_table_name, config_url, endpoint_url)
+        self.youtube_storage = YouTubeStorage.get_singleton()
 
     def search(self, subject: str):
         request_params = {
@@ -33,8 +35,12 @@ class YouTubeQuery:
             "maxResults": 25
         }
         try:
-            request = self.youtube.search().list(**request_params)
-            response = request.execute()
+            params_string = self.stringify_params(**request_params)
+            logger.info(f"request submitted with params: {params_string}")
+            youtube_request = self.youtube.search().list(**request_params)
+            youtube_response = youtube_request.execute()
+            logger.info("response received")
+
         except HttpError as error:
             print(f"An HTTP error occurred: {error}")
             return
@@ -44,14 +50,11 @@ class YouTubeQuery:
             'requestSubmittedAt': datetime.utcnow().isoformat(),
             **request_params
         }
-        response_row = self.youtube_storage.get_response_row(response, youtube_query)
-        response_row.update({
-            'kind': response.get('kind'),
-            'etag': response.get('etag'),
-            'nextPageToken': response.get('nextPageToken'),
-            'regionCode': response.get('regionCode'),
-            'totalResults': response['pageInfo'].get('totalResults'),
-            'resultsPerPage': response['pageInfo'].get('resultsPerPage')
-        })
-        self.youtube_storage.responses_table.insert_row(response_row)
-        self.youtube_storage.responses_table.insert_rows()
+
+        logger.info("storing query response")
+        self.youtube_storage.save_query_response(youtube_query, youtube_response)
+        logger.info("query response stored")
+
+    def stringify_params(self,**params):
+        """ create a dictionary and then a string given a set of params """
+        return ', '.join(f"{key}={value}" for key, value in params.items())
