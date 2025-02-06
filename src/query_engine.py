@@ -19,10 +19,10 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class YouTubeQueryException(Exception):
+class QueryEngineException(Exception):
     pass
 
-class YouTubeQuery:
+class QueryEngine:
     """ Submits queries to YouTube metadata API
         and stores each query request and its
         query response details to YouTubeStorage.
@@ -48,16 +48,16 @@ class YouTubeQuery:
 
         except HttpError as error:
             logger.error(f"An HTTP error occurred: {error}")
-            raise YouTubeQueryException(error)
+            raise QueryEngineException(error)
 
-        youtube_query = {
+        query_engine = {
             'subject': subject,
             'requestSubmittedAt': datetime.utcnow().isoformat(),
             **request_params
         }
 
         logger.info("storing query response")
-        self.youtube_storage.save_query_response(youtube_query, youtube_response)
+        self.youtube_storage.save_query_response(query_engine, youtube_response)
         logger.info("query response stored")
 
     def stringify_params(self,**params):

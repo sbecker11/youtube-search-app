@@ -5,8 +5,8 @@ import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 
-# Importing from your module where YouTubeQuery is defined
-from youtube_query import YouTubeQuery, HttpError
+# Importing from your module where QueryEngine is defined
+from query_engine import QueryEngine, HttpError, QueryEngineException
 
 @pytest.fixture(autouse=True, scope="function")
 def setup_logging():
@@ -17,15 +17,15 @@ def setup_logging():
 @pytest.fixture
 def mock_logger():
     mock_log = MagicMock()
-    with patch('youtube_query.logger', mock_log):
+    with patch('query_engine.logger', mock_log):
         yield mock_log
 
 @pytest.fixture
-def mock_youtube():
-    with patch('youtube_query.build') as mock_build:
-        inner_mock_youtube = MagicMock()
-        mock_build.return_value = inner_mock_youtube
-        yield inner_mock_youtube
+def mock_engine():
+    with patch('query_engine.build') as mock_build:
+        inner_mock_engine = MagicMock()
+        mock_build.return_value = inner_mock_engine
+        yield inner_mock_engine
 
 @pytest.fixture
 def mock_storage():
@@ -35,26 +35,30 @@ def mock_storage():
         yield inner_mock_storage
 
 @pytest.fixture
-def query_instance(mock_youtube, mock_storage):
-    return YouTubeQuery()
+def query_instance(mock_engine, mock_storage):
+    return QueryEngine()
 
-class TestYouTubeQuery:
-    def test_search_success(self, query_instance, mock_youtube, mock_storage, mock_logger, caplog):
-        mock_youtube.search().list().execute.return_value = {"items": [{"id": "video1"}]}
+class TestQueryEngine:
+    def test_search_success(self, query_instance, mock_engine, mock_storage, mock_logger, caplog):
+        mock_engine.search().list().execute.return_value = {"items": [{"id": "video1"}]}
         query_instance.search("test_subject")
         mock_logger.info.assert_any_call("request submitted with params: part=snippet, q=test_subject, type=video, maxResults=25")
         mock_logger.info.assert_any_call("response received")
         mock_logger.info.assert_any_call("storing query response")
         mock_logger.info.assert_any_call("query response stored")
 
-    def test_search_http_error(self, query_instance, mock_youtube, mock_storage, mock_logger):
+    def test_search_http_error(self, query_instance, mock_engine, mock_storage, mock_logger):
         mock_http_error = HttpError(MagicMock(status=403), b'Error')
         mock_http_error.reason = 'Permission Denied'  # Mock this if you want a specific reason
-        mock_youtube.search().list().execute.side_effect = mock_http_error
-        query_instance.search("test_subject")
+        mock_engine.search().list().execute.side_effect = mock_http_error
+
+        with pytest.raises(QueryEngineException):
+            query_instance.search("test_subject")
+
         mock_logger.error.assert_called_with(
             f"An HTTP error occurred: {mock_http_error}"
         )
+
     def test_stringify_params_format(self, query_instance):
         params = {"part": "snippet", "q": "test", "type": "video", "maxResults": 25}
         result = query_instance.stringify_params(**params)

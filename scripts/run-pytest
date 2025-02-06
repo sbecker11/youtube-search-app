@@ -7,9 +7,9 @@
 if [ -z "$1" ]; then
   echo "Usage: $0 <pytest-target>"
   echo " example: $0 tests"
-  echo " example: $0 tests/test_youtube_query.py"
-  echo " example: $0 tests/test_youtube_query.py::TestYouTubeQuery"
-  echo " example: $0 tests/test_youtube_query.py::TestYouTubeQuery::test_basic_logging"
+  echo " example: $0 tests/test_query_engine.py"
+  echo " example: $0 tests/test_query_engine.py::TestQueryEngine"
+  echo " example: $0 tests/test_query_engine.py::TestQueryEngine::test_basic_logging"
 
   exit 1
 fi
@@ -28,12 +28,16 @@ fi
 if [[ ":$PYTHONPATH:" != *":$(pwd)/tests:"* ]]; then
     export PYTHONPATH="$(pwd)/tests:$PYTHONPATH"
 fi
-echo "PYTHONPATH $PYTHONPATH"
+
+# Remove duplicate entries from PYTHONPATH
+export PYTHONPATH=$(echo "$PYTHONPATH" | awk -v RS=: -v ORS=: '!a[$1]++')
+
+echo "final PYTHONPATH $PYTHONPATH"
 
 # Install dependencies
-pip install -r requirements.txt
+# pip install -r requirements.txt
 
-pip install pytest-docker-compose
+# pip install pytest-docker-compose
 
 # Replace mock_aws and mock_aws2 with mock_aws
 sed -i '' 's/mock_aws/mock_aws/g' $(find . -type f -name "*.py")

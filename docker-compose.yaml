@@ -22,9 +22,9 @@ services:
     depends_on:
       - localstack
 
-  youtube_query_scanner:
+  query_scanner:
     build: .
-    command: python src/youtube_query_scanner.py
+    command: python src/query_scanner.py
     volumes:
       - .:/app
     env_file:

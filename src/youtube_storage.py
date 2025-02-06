@@ -82,7 +82,7 @@ class YouTubeStorage:
         logger.info("Found %d snippets for response_id: %s", len(snippets), response_id)
         return snippets
 
-    def get_response_row(self, youtube_response: Dict[str, any], youtube_query: Dict[str, str]) -> Dict[str, any]:
+    def get_response_row(self, youtube_response: Dict[str, any], query_engine: Dict[str, str]) -> Dict[str, any]:
         response_id = str(uuid.uuid4())  # Generate a unique primary key
         response_row = {
             'responseId': response_id,  # PK
@@ -94,14 +94,14 @@ class YouTubeStorage:
                 "totalResults": youtube_response.get('pageInfo', {}).get('totalResults', 0),
                 "resultsPerPage": youtube_response.get('pageInfo', {}).get('resultsPerPage', 0)
             },
-            "subject": youtube_query.get('subject', ''),
-            "requestSubmittedAt": youtube_query.get('requestSubmittedAt', datetime.utcnow().isoformat()),
+            "subject": query_engine.get('subject', ''),
+            "requestSubmittedAt": query_engine.get('requestSubmittedAt', datetime.utcnow().isoformat()),
             "responseReceivedAt": datetime.utcnow().isoformat(),
             "query": {
-                "part": youtube_query.get('part', ''),
-                "q": youtube_query.get('q', ''),
-                "type": youtube_query.get('type', ''),
-                "maxResults": youtube_query.get('maxResults', '')
+                "part": query_engine.get('part', ''),
+                "q": query_engine.get('q', ''),
+                "type": query_engine.get('type', ''),
+                "maxResults": query_engine.get('maxResults', '')
             }
         }
         logger.info("Generated response row with ID: %s", response_id)
@@ -125,10 +125,10 @@ class YouTubeStorage:
         logger.info("Generated %d snippet rows for response ID: %s", len(snippet_rows), response_id)
         return snippet_rows
 
-    def add_request_response(self, youtube_response: Dict[str, any], youtube_query: Dict[str, str]):
+    def add_request_response(self, youtube_response: Dict[str, any], query_engine: Dict[str, str]):
         """Add a request and its response to the database."""
         logger.info("Adding request and response to the database.")
-        response_row = self.get_response_row(youtube_response, youtube_query)
+        response_row = self.get_response_row(youtube_response, query_engine)
         snippet_rows = self.get_snippet_rows(youtube_response, response_row['responseId'])
 
         try:

@@ -4,7 +4,7 @@ import pytest
 from youtube_storage import YouTubeStorage
 
 def test_save_query_response(youtube_storage):
-    youtube_query = {
+    query_engine = {
         'subject': 'Python programming',
         'requestSubmittedAt': '2023-10-01T00:00:00Z',
         'part': 'snippet',
@@ -23,7 +23,7 @@ def test_save_query_response(youtube_storage):
         },
         'items': []
     }
-    youtube_storage.save_query_response(youtube_query, youtube_response)
+    youtube_storage.save_query_response(query_engine, youtube_response)
     # Add assertions to verify the behavior
     table = youtube_storage.dynamodb.Table('Responses')
     response = table.get_item(Key={'responseId': youtube_response['etag']})

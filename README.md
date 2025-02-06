@@ -1,33 +1,77 @@
-Overview
+# Overview of the YouTube Search API project
 
-This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. Dockerfile and docker-compose.yml are used to deploy assets to DockerDesktop.
+This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. `Dockerfile` and `docker-compose.yaml` reside at project-root, and are used to deploy assets to DockerDesktop.
 
-YouTubeQuery from youtube_query.py sends a variety of search queries to YouTubeMetadataAPI
+QueryEngine in `src/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. Query request and response data access operations are handled by the YouTubeStorage object. Example query response data may be found in /data/query_response_head.json and query_response_item.json
 
-Search query results are stored in DynamoDb tables using DynamoPersistenceEngine from dynamo_persistence_engine.py
+Search query requests and responses are stored in the Responses dynamoDb tables by YouTubeStorage in `src/youtube_storage.py`. Each response record has a unique primary key named `response_id`. All snippets associated with a response are stored in a Snippets table and refer to foreign key `response_id`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_data_config.json`
 
-RestApi from rest_api.py, uses FastAPI . The OpenAI documentation will be created in a local docs folder and it will be used to investigate the search query results stored in dynamodb.
+YouTubStoreageApi from `src/youtube_storage_api.py` uses FastAPI to handle queries made against YouTubeStorage. OpenAI documentation is created during `docker-compose up --build` and resides at `/docs`.
 
-Credentials for YouTube and AWS are stored in a local .env file, which is never uploaded to the remote github repo.
+QueryScanner in `src/query_scanner.py` ses croniter and schedule to run a batch of queries to the YouTubeAPI via QueryEngine.
 
-Docker configuration files are found at project root. Python source modules are found at project root. Pytest modules are found in /tests OpenAPI documentation files are found in /docs.
+Credentials for YouTube and AWS are stored in a local `.env` file, which is never uploaded to the remote github repo.
+
+The structure of the `.env` file is:
+
+```text
+YOUTUBE_API_KEY=*****
+AWS_ACCESS_KEY_ID=*****
+AWS_DEFAULT_REGION=us-west-2
+PYTHONPATH=src:tests
+DYNAMODB_URL=http://localstack:4566
+RESPONSES_CONFIG_PATH=./data/responses_table_config.json
+SNIPPETS_CONFIG_PATH=./data/snippets_table_config.json
+QUERY_SCANNER_CONFIG_PATH=./data/query_scanner_config.json
+MAX_QUERIES_PER_SCAN=100
+```
+
+Docker configuration files are found at project root. Python source modules are found at project root under the `src` directory. Pytest modules are found in `/tests` OpenAPI documentation files are found in `/docs`.
 
 important links:
 http://localhost:8000 link to the YouTubeStorageApi
 
+Project Structure:
+```tree
+├── Dockerfile
+├── README.md
+├── constraints.txt
+├── data
+│   ├── query_response_head.json
+│   ├── query_response_item.json
+│   ├── query_scanner_config.json
+│   ├── responses_table_config.json
+│   └── snippets_table_config.json
+├── dist
+│   └── youtube-search-api.egg-info
+│       ├── PKG-INFO
+│       ├── SOURCES.txt
+│       ├── dependency_links.txt
+│       └── top_level.txt
+├── docker-compose.yaml
+├── jest.config.js
+├── localstack.pid
+├── requirements.txt
+├── scripts
+│   └── run-pytest
+├── src
+│   ├── __init__.py
+│   ├── query_engine.py
+│   ├── query_scanner.py
+│   ├── youtube_storage.py
+│   ├── youtube_storage_api.py
+│   └── youtube_table.py
+└── tests
+    ├── __init__.py
+    ├── conftest.py
+    ├── test_conftest.py
+    ├── test_query_engine.py
+    ├── test_query_scanner.py
+    ├── test_youtube_storage.py
+    ├── test_youtube_storage_api.py
+    └── test_youtube_table.py
+```
 
-Architecture
-
-dynamodb engine
-  creates table definitions
-  using metadata
-
-query parameters
-youtube_query
-  builds search_videos query using easy_api_wrapper
-  submits query request to YouTubeMetadataApi
-  search videos response
-  dynamodb engine saves data to tables
 
 
 
@@ -36,12 +80,7 @@ youtube_query
 
 
 
-
-
-
-
-
-## YouTube Open AI Specification
+YouTube Open AI Specification
 
 https://developers.google.com/youtube/v3/docs
  https://www.googleapis.com/youtube/v3
