@@ -1,7 +1,22 @@
 #!/bin/bash
 
 # Exit immediately if a command exits with a non-zero status
-set -e
+# set -e
+
+# Check if pytest target is provided
+if [ -z "$1" ]; then
+  echo "Usage: $0 <pytest-target>"
+  echo " example: $0 tests"
+  echo " example: $0 tests/test_youtube_query.py"
+  echo " example: $0 tests/test_youtube_query.py::TestYouTubeQuery"
+  echo " example: $0 tests/test_youtube_query.py::TestYouTubeQuery::test_basic_logging"
+
+  exit 1
+fi
+
+PYTEST_TARGET=$1
+
+export AWS_DEFAULT_REGION=us-east-1
 
 # Activate virtual environment
 source venv/bin/activate
@@ -10,14 +25,22 @@ source venv/bin/activate
 if [[ ":$PYTHONPATH:" != *":$(pwd)/src:"* ]]; then
     export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
 fi
+if [[ ":$PYTHONPATH:" != *":$(pwd)/tests:"* ]]; then
+    export PYTHONPATH="$(pwd)/tests:$PYTHONPATH"
+fi
 echo "PYTHONPATH $PYTHONPATH"
 
 # Install dependencies
 pip install -r requirements.txt
+
 pip install pytest-docker-compose
 
+# Replace mock_aws and mock_aws2 with mock_aws
+sed -i '' 's/mock_aws/mock_aws/g' $(find . -type f -name "*.py")
+sed -i '' 's/mock_aws2/mock_aws/g' $(find . -type f -name "*.py")
+
 # Run pytest
-pytest tests
+pytest $PYTEST_TARGET
 
 # Deactivate virtual environment
 deactivate

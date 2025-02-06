@@ -2,6 +2,8 @@ from typing import List
 from fastapi import FastAPI
 from youtube_storage import YouTubeStorage
 
+class YouTubeStorageApiException(Exception):
+    pass
 class YouTubeStorageApi:
     def __init__(self):
         self.app = FastAPI()

@@ -12,10 +12,15 @@ from googleapiclient.errors import HttpError
 
 from youtube_storage import YouTubeStorage
 
+# Load .env file
 load_dotenv()
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+class YouTubeQueryException(Exception):
+    pass
 
 class YouTubeQuery:
     """ Submits queries to YouTube metadata API
@@ -42,8 +47,8 @@ class YouTubeQuery:
             logger.info("response received")
 
         except HttpError as error:
-            print(f"An HTTP error occurred: {error}")
-            return
+            logger.error(f"An HTTP error occurred: {error}")
+            raise YouTubeQueryException(error)
 
         youtube_query = {
             'subject': subject,
@@ -57,4 +62,6 @@ class YouTubeQuery:
 
     def stringify_params(self,**params):
         """ create a dictionary and then a string given a set of params """
-        return ', '.join(f"{key}={value}" for key, value in params.items())
+        stringfied = ', '.join(f"{key}={value}" for key, value in params.items())
+        print(f"stringfied: {stringfied}")
+        return stringfied

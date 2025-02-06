@@ -3,6 +3,9 @@ import json
 from typing import Dict
 import boto3
 
+class YouTubeTableException(Exception):
+    pass
+
 class YouTubeTable:
     def __init__(self, config:Dict[str,str]):
         try:

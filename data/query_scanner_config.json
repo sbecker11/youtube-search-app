@@ -1,0 +1,8 @@
+{
+    "queries": [
+        "SpaceX",
+        "Tiny LLMs",
+        "Agentful use cases"
+    ],
+    "schedule":  "0 10 * * *" 
+}
