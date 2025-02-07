@@ -1,20 +1,27 @@
 {
-    "TableName": "Responses",
-
-    "KeySchema": [
-      {
-        "AttributeName": "etag",
-        "KeyType": "HASH"
-      }
-    ],
-    "AttributeDefinitions": [
-      {
-        "AttributeName": "etag",
-        "AttributeType": "S"
-      }
-    ],
-    "ProvisionedThroughput": {
-      "ReadCapacityUnits": 5,
-      "WriteCapacityUnits": 5
+  "TableName": "Snippets",
+  "KeySchema": [
+    {
+      "AttributeName": "snippet.channelId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "snippet.publishedAt",
+      "KeyType": "RANGE"
     }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "snippet.channelId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "snippet.publishedAt",
+      "AttributeType": "S"
+    }
+  ],
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 5,
+    "WriteCapacityUnits": 5
+  }
 }

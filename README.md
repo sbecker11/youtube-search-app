@@ -81,13 +81,43 @@ Project Structure:
     └── test_youtube_table.py
 ```
 
+# YouTube Search API
 
+## Verifying Docker Desktop is Running
 
+To verify that Docker Desktop is running, you can follow these steps:
 
+1. **Check Docker Desktop Application**: Open the Docker Desktop application on your computer. If it is running, you should see the Docker icon in your system tray (Windows) or menu bar (Mac).
 
+2. **Use Command Line**: Open a terminal and run the following command to check the status of Docker:
 
+```sh
+docker info
+```
 
+If Docker Desktop is running, this command will display detailed information about your Docker installation, including the server version, storage driver, and other configuration details.
 
+3. **Check Docker Services**: You can also list the running Docker containers to ensure that your services are up and running:
+
+```sh
+docker ps
+```
+
+This command will display a list of all running containers, including their container IDs, names, and status.
+
+## Running LocalStack with DynamoDB
+
+To start the LocalStack service with DynamoDB, use the following command:
+
+```sh
+docker-compose -f docker-compose-dynamodb-only.yml up
+```
+
+To stop the services, use:
+
+```sh
+docker-compose -f docker-compose-dynamodb-only.yml down
+```
 
 YouTube Open AI Specification
 

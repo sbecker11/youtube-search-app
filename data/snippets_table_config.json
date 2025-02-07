@@ -1,28 +1,27 @@
 {
-    "TableName": "Snippets",
-
-    "KeySchema": [
-      {
-        "AttributeName": "snippet.channelId",
-        "KeyType": "HASH"  # Partition key
-      },
-      {
-        "AttributeName": "snippet.publishedAt",
-        "KeyType": "RANGE"  # Sort key
-      }
-    ],
-    "AttributeDefinitions": [
-      {
-        "AttributeName": "snippet.channelId",
-        "AttributeType": "S"
-      },
-      {
-        "AttributeName": "snippet.publishedAt",
-        "AttributeType": "S"  # Note: DynamoDB stores datetime as strings in ISO 8601 format
-      }
-    ],
-    "ProvisionedThroughput": {
-      "ReadCapacityUnits": 5,
-      "WriteCapacityUnits": 5
+  "TableName": "Snippets",
+  "KeySchema": [
+    {
+      "AttributeName": "snippet.channelId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "snippet.publishedAt",
+      "KeyType": "RANGE"
     }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "snippet.channelId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "snippet.publishedAt",
+      "AttributeType": "S"
+    }
+  ],
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 5,
+    "WriteCapacityUnits": 5
   }
+}

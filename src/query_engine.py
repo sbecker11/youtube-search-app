@@ -36,26 +36,27 @@ class QueryEngine:
     @classmethod
     def get_singleton(cls):
         if cls._instance is None:
-            cls._instance = cls(config)
+            cls._instance = cls()
         return cls._instance
 
     def __init__(self):
-        if QueryEngine._instance is not None:
-            raise RuntimeError("QueryEngine is a singleton! Use get_singleton() method to get the instance.")
 
-        if not hasattr(self, 'initialized'):  # ensure that heavy initialization happens only once
+        if not hasattr(self, 'initialized'):
+            self.initialized = False  # singleton logic to ensure that heavy initialization is done only once
+        elif self.initialized:
+            return
 
-            youtube_api_key = os.getenv("YOUTUBE_API_KEY")
-            if not youtube_api_key:
-                raise RuntimeError("QueryEngine YOUTUBE_API_KEY is undefined")
+        youtube_api_key = os.getenv("YOUTUBE_API_KEY")
+        if not youtube_api_key:
+            raise RuntimeError("QueryEngine YOUTUBE_API_KEY is undefined")
 
-            self.youtube_api_client = build('youtube', 'v3', developerKey=youtube_api_key)
-            logger.info("the QueryEngine instance initialized with youtube_api_client")
+        self.youtube_api_client = build('youtube', 'v3', developerKey=youtube_api_key)
+        logger.info("the QueryEngine instance is now initialized with youtube_api_client")
 
-            self.youtube_api_client_storage = YouTubeStorage.get_singleton()
-            logger.info("the QueryEngine instance initialized with the YouTubeStorage instance")
+        self.youtube_api_client_storage = YouTubeStorage.get_singleton()
+        logger.info("the QueryEngine instance is now initialized with the YouTubeStorage instance")
 
-            self.initialized = True  # Flag to show heavy initialization has been done
+        self.initialized = True  # Flag to show heavy initialization has been done
 
     def search(self, subject: str):
         request_params = {

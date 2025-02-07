@@ -43,23 +43,24 @@ class QueryScanner:
         cls._instance = None
 
     def __init__(self):
-        if QueryScanner._instance is not None:
-            raise RuntimeError("QueryScanner is a singleton! Use get_singleton() method to get the instance.")
 
-        if not hasattr(self, 'initialized'):  # ensure that heavy initialization happens only once
+        if not hasattr(self, 'initialized'):
+            self.initialized = False  # singleton logic to ensure that heavy initialization is done only once
+        elif self.initialized:
+            return
 
-            self.config = self.load_json_file(os.getenv('QUERY_SCANNER_CONFIG_PATH', 'undefined'))
-            if not isinstance(self.config, dict):
-                raise RuntimeError("config file not loaded")
-            logger.info("the QueryScanner instance config loaded")
+        self.config = self.load_json_file(os.getenv('QUERY_SCANNER_CONFIG_PATH', 'undefined'))
+        if not isinstance(self.config, dict):
+            raise RuntimeError("config file not loaded")
+        logger.info("the QueryScanner instance config loaded")
 
-            self.run_status = "Ready"
-            logger.info("the QueryScanner instance run_status:%s", self.run_status)
+        self.run_status = "Ready"
+        logger.info("the QueryScanner instance run_status:%s", self.run_status)
 
-            self.query_engine = QueryEngine.get_singleton()
-            logger.info("the QueryScanner instance initialized with the QueryEngine instance")
+        self.query_engine = QueryEngine.get_singleton()
+        logger.info("the QueryScanner instance initialized with the QueryEngine instance")
 
-            self.initialized = True  # Flag to show heavy initialization has been done
+        self.initialized = True  # Flag to show heavy initialization has been done
 
     def load_json_file(self, json_file_path):
         """ raised exceptions FileNotFoundError, JSONDecodeError """
@@ -93,6 +94,7 @@ class QueryScanner:
 
     def set_run_status(self, run_status):
         self.run_status = run_status
+        logger.info("run_status set to %s", self.run_status)
 
     def start(self):
         """ Start running the schedule that calls run_queries
@@ -101,14 +103,20 @@ class QueryScanner:
         """
         queries = self.config['queries']
         cron_string = self.config['cron_string']
+        logger.info("cron_string: %s", cron_string)
         cron = croniter.croniter(cron_string, datetime.utcnow())
         next_execution = cron.get_next(datetime.utcnow())
+        logger.info("*"*80)
+        logger.info("first execution scheduled for %s", next_execution.isoformat())
         self.set_run_status("Running")
         while self.get_run_status() != "Stopped":
             utcnow = datetime.utcnow()
             if utcnow >= next_execution:
+                logger.info("*"*80)
+                logger.info("execution starting at %s", utcnow.isoformat())
                 self.run_queries(queries)
                 next_execution = cron.get_next(datetime.utcnow())
+                logger.info("next execution scheduled for %s", next_execution.isoformat())
             time.sleep(10)  # Sleep to prevent high CPU usage
 
 def main():

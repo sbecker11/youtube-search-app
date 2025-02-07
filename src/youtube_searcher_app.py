@@ -33,44 +33,47 @@ class YouTubeSearcherApp:
         cls._instance = None
 
     def __init__(self):
-        if YouTubeSearcherApp._instance is not None:
-            raise RuntimeError("YouTubeSearcherApp is a singleton! Use get_singleton() method to get the instance.")
 
-        if not hasattr(self, 'initialized'):  # ensure that heavy initialization happens only once
+        if not hasattr(self, 'initialized'):
+            self.initialized = False
+        elif self.initialized:  # to ensure that heavy initialization is only done once
+            return
 
-            self.app = FastAPI()
-            self.setup_routes()
-            logger.info("the YouTubeSearcherApp instance has FastAPI app with public routes loaded")
+        # ...heavy initialization...
+        self.fast_api_app = FastAPI()
+        self.setup_routes()
+        logger.info("the YouTubeSearcherApp instance has FastAPI app with public routes loaded")
 
-            self.storage = YouTubeStorage.get_singleton()
-            logger.info("the YouTubeSearcherApp instance initialized with the YouTubeStorage instance")
+        self.storage = YouTubeStorage.get_singleton()
+        logger.info("the YouTubeSearcherApp instance initialized with the YouTubeStorage instance")
 
-            self.scanner = QueryScanner.get_singleton()
-            logger.info("the YouTubeSearcherApp instance initialized with the QueryScanner instance")
+        self.scanner = QueryScanner.get_singleton()
+        logger.info("the YouTubeSearcherApp instance initialized with the QueryScanner instance")
 
-            self.initialized = True  # Flag to show heavy initialization has been done
+        self.initialized = True  # Flag to show heavy initialization has been done
 
-    def get_app(self):
+    def get_fast_api_app(self):
         """ Return the FastAPI app instance """
-        return self.app
+        return self.fast_api_app
 
     def setup_routes(self):
-        def list_subjects():
-            """ scan all response items to create a list of all unique subject values """
-            return self.storage.find_all_subjects()
+        def list_querys():
+            """ scan all response items to create a list of all unique query values """
+            return self.storage.find_all_querys()
 
-        def list_responses(subject: str):
-            """ return a list of responses from requests with subject """
-            return self.storage.find_response_ids_by_subject(subject)
+        def list_responses(query: str):
+            """ return a list of responses from requests with query """
+            return self.storage.find_response_ids_by_query(query)
 
         def list_snippets(response_id: str):
             """ return the list of snipped associated with the given response_id """
             return self.storage.find_snippets_by_response_id(response_id)
 
-        self.app.get("/subjects", response_model=List[dict])(list_subjects)
-        self.app.get("/responses/{subject}", response_model=List[dict])(list_responses)
-        self.app.get("/snippets/{response_id}", response_model=List[dict])(list_snippets)
+        self.fast_api_app.get("/queries", response_model=List[dict])(list_querys)
+        self.fast_api_app.get("/responses/{query}", response_model=List[dict])(list_responses)
+        self.fast_api_app.get("/snippets/{response_id}", response_model=List[dict])(list_snippets)
 
 if __name__ == "__main__":
     logger.info("Welcome to YouTubeSearcherApp")
-    YouTubeSearcherApp.get_singleton()
+    app_instance = YouTubeSearcherApp.get_singleton()
+    app = app_instance.get_fast_api_app()

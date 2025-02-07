@@ -3,8 +3,8 @@
 # Exit immediately if a command exits with a non-zero status
 # set -e
 
-
-export AWS_DEFAULT_REGION=us-east-1
+# as defined in the .env file
+export AWS_DEFAULT_REGION=us-west-2
 
 # Activate virtual environment
 source venv/bin/activate
@@ -22,4 +22,25 @@ echo "final PYTHONPATH $PYTHONPATH"
 # Install dependencies
 # pip install -r requirements.txt
 
+# verify dockerdesktop is running
+docker info
+if [ "$?" -ne "0" ]; then
+  echo "DockerDesktop is not accessible"
+  exit 1
+fi
+
+# start dynamodb in this terminal in detached mode
+echo "starting dynamodb at http://localhost:4566"
+docker-compose -f docker-compose-dynamodb-only.yml up -d --remove-orphans
+
+# verify dynamodb is running
+DYNAMODB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4566)
+if [ "$DYNAMODB_STATUS" -ne 200 ]; then
+  echo "DynamoDB is not running at http://localhost:4566"
+  exit 1
+else
+  echo "verified that dynamodb is accessible at http://localhost:4566"
+fi
+
+# now start the app
 python src/youtube_searcher_app.py

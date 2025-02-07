@@ -10,10 +10,6 @@ from youtube_table import YouTubeTable
 
 load_dotenv()
 
-DYNAMODB_URL = os.getenv('DYNAMODB_URL')
-RESPONSES_json_file_path = os.getenv('RESPONSES_json_file_path')
-SNIPPETS_json_file_path = os.getenv('SNIPPETS_json_file_path')
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,33 +24,43 @@ class YouTubeStorage:
             cls._instance = super(YouTubeStorage, cls).__new__(cls, *args, **kwargs)
         return cls._instance
 
+    @classmethod
+    def get_singleton(cls) -> 'YouTubeStorage':
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
     def __init__(self):
-        if YouTubeStorage._instance is not None:
-            raise RuntimeError("YouTubeStorage is a singleton! Use get_singleton() method to get the instance.")
 
-        if not hasattr(self, 'initialized'):  # ensure that heavy initialization happens only once
+        if not hasattr(self, 'initialized'):
+            self.initialized = False  # singleton logic to ensure that heavy initialization is done only once
+        elif self.initialized:
+            return
 
-            if not DYNAMODB_URL or not RESPONSES_json_file_path or not SNIPPETS_json_file_path:
-                raise ValueError("Environment variables for database configuration are not set.")
+        self.dynamo_url = os.getenv('DYNAMODB_URL')
+        self.responses_config_path = os.getenv('RESPONSES_CONFIG_PATH')
+        self.snippets_config_path = os.getenv('SNIPPETS_CONFIG_PATH')
 
-            dynamodb_url = DYNAMODB_URL
+        if not self.dynamo_url or not self.responses_config_path or not self.snippets_config_path:
+            raise ValueError("Environment variables for database configuration are not set.")
 
-            responses_config = self.load_json_file(RESPONSES_json_file_path)
-            if not isinstance(responses_config, dict):
-                raise RuntimeError("responses_config if not a dict!")
+        self.responses_config = self.load_json_file(self.responses_config_path)
+        if not isinstance(self.responses_config, dict):
+            raise RuntimeError("responses_config is not a dict!")
 
-            snippets_config = self.load_json_file(SNIPPETS_json_file_path)
-            if not isinstance(snippets_config, dict):
-                raise RuntimeError("snippets_config if not a dict!")
+        self.snippets_config = self.load_json_file(self.snippets_config_path)
+        if not isinstance(self.snippets_config, dict):
+            raise RuntimeError("snippets_config is not a dict!")
 
-            # creating dynamodb resource
-            self.dynamodb = boto3.resource('dynamodb', endpoint_url=dynamodb_url)
+        # creating dynamodb resource
+        self.dynamodb = boto3.resource('dynamodb', endpoint_url=self.dynamo_url)
 
-            # creating dynamodb tables
-            self.responses_table = YouTubeTable(responses_config)
-            self.snippets_table = YouTubeTable(snippets_config)
+        self.responses_table = YouTubeTable(self.responses_config)
+        self.snippets_table = YouTubeTable(self.snippets_config)
 
-            self.initialized = True  # Flag to show heavy initialization has been done
+        logger.info("the YouTubeStorage instance is now initialized with dynamoDb tables")
+
+        self.initialized = True  # Flag to show heavy initialization has been done
 
     def load_json_file(self, json_file_path: str) -> Dict[str, any]:
         try:
@@ -67,22 +73,22 @@ class YouTubeStorage:
             logger.error("Error decoding JSON file at %s: %s", json_file_path, error)
             return {}
 
-    def find_all_subjects(self) -> List[str]:
-        """Return a list of all distinct subjects found among all responses sorted by request submitted at ascending."""
-        logger.info("Querying all distinct subjects.")
-        subjects = self.responses_table.query_table(
-            "SELECT DISTINCT subject FROM {responses_table} ORDER BY requestSubmittedAt ASC",
+    def find_all_querys(self) -> List[str]:
+        """Return a list of all distinct querys found among all responses sorted by request submitted at ascending."""
+        logger.info("Querying all distinct querys.")
+        querys = self.responses_table.query_table(
+            "SELECT DISTINCT query FROM {responses_table} ORDER BY requestSubmittedAt ASC",
             {"responses_table": self.responses_table.table_name})
-        logger.info("Found subjects: %d", len(subjects))
-        return subjects
+        logger.info("Found querys: %d", len(querys))
+        return querys
 
-    def find_response_ids_by_subject(self, subject: str) -> List[str]:
-        """Return a list of response_id that contained the given subject in its request."""
-        logger.info("Querying response IDs for subject: %s", subject)
+    def find_response_ids_by_query(self, query: str) -> List[str]:
+        """Return a list of response_id that contained the given query in its request."""
+        logger.info("Querying response IDs for query: %s", query)
         response_ids = self.responses_table.query_table(
-            "SELECT response_id FROM {responses_table} WHERE subject = :subject",
-            {"responses_table": self.responses_table.table_name, ":subject": subject})  # Use parameters to avoid SQL injection
-        logger.info("Found %d response IDs for subject: %s", len(response_ids), subject)
+            "SELECT response_id FROM {responses_table} WHERE query = :query",
+            {"responses_table": self.responses_table.table_name, ":query": query})  # Use parameters to avoid SQL injection
+        logger.info("Found %d response IDs for query: %s", len(response_ids), query)
         return response_ids
 
     def find_snippets_by_response_id(self, response_id: str) -> List[Dict[str, str]]:
@@ -106,7 +112,7 @@ class YouTubeStorage:
                 "totalResults": youtube_response.get('pageInfo', {}).get('totalResults', 0),
                 "resultsPerPage": youtube_response.get('pageInfo', {}).get('resultsPerPage', 0)
             },
-            "subject": query_engine.get('subject', ''),
+            "query": query_engine.get('query', ''),
             "requestSubmittedAt": query_engine.get('requestSubmittedAt', datetime.utcnow().isoformat()),
             "responseReceivedAt": datetime.utcnow().isoformat(),
             "query": {
@@ -158,9 +164,3 @@ class YouTubeStorage:
         except boto3.exceptions.Boto3Error as error:
             logger.error("Failed to add request and response to database: %s", str(error))
             # Consider implementing retry logic here if it's appropriate for your use case.
-
-    @classmethod
-    def get_singleton(cls) -> 'YouTubeStorage':
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
