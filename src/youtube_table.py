@@ -1,13 +1,18 @@
 import os
 import json
+import logging
 from typing import Dict
 import boto3
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 class YouTubeTableException(Exception):
     pass
 
 class YouTubeTable:
     def __init__(self, config:Dict[str,str]):
+
         try:
             self.dynamodb_url = os.getenv('DYNAMODB_URL')
             self.dynamodb = boto3.resource('dynamodb', endpoint_url=self.dynamodb_url)
@@ -26,6 +31,8 @@ class YouTubeTable:
         except json.JSONDecodeError as error:
             print(f"Error decoding JSON configuration: {error}")
             raise
+
+        logger.info("YouTubeTable '%s' successfully initialized", self.table_name)
 
     def table_exists(self):
         """

@@ -6,7 +6,7 @@ QueryEngine in `src/query_engine.py` sends a variety of RESTful search queries t
 
 Search query requests and responses are stored in the Responses dynamoDb tables by YouTubeStorage in `src/youtube_storage.py`. Each response record is given a unique primary key named `response_id` and stored in the Dynamo `Responses` table. All snippets associated with a response are stored in a `Snippets` table and refer to foreign key `response_id`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_table_config.json`
 
-YouTubStoreageApi from `src/youtube_storage_api.py` uses FastAPI to handle queries made by project users against YouTubeStorage. OpenAI documentation is created during `docker-compose up --build` and resides at `/docs`.
+YouTubStoreageApi from `src/youtube_searcher_app.py` uses FastAPI to handle queries made by project users against YouTubeStorage. OpenAI documentation is created during `docker-compose up --build` and resides at `/docs`.
 
 QueryScanner in `src/query_scanner.py` is a singleton object that uses `croniter` and `schedule` to run a batch of queries to the YouTubeAPI via QueryEngine. The set to queries and the cron schedule are stored at `/data/query_scanner_config.json`.
 
@@ -29,13 +29,13 @@ MAX_QUERIES_PER_SCAN=100
 Docker configuration files are found at project root. Python source modules are found at project root under the `src` directory. Pytest modules are found in `/tests` OpenAPI documentation files are found in `/docs`.
 
 important links:
-http://localhost:8000 link to the YouTubeStorageApi
+http://localhost:8000 link to the YouTubeSearcherApp
 
 Object Relationships
 
-    User --------------- uses YouTubeStorageAPI URL
-    User --------------- queries data --------------------- YouTubeStorageAPI
-app YouTubeStorageAPI -- queries data in ------------------ YouTubeStorage
+    User --------------- uses YouTubeSearcherApp URL
+    User --------------- queries data --------------------- YouTubeSearcherApp
+app YouTubeSearcherApp -- queries data in ------------------ YouTubeStorage
     YouTubeStorage ----- uses AWS access keys in .env
     QueryEngine -------- uses YOUTUBE_API key in .env
     QueryEngine -------- sends request to ----------------- YouTube-Metadata-API (external)
@@ -68,7 +68,7 @@ Project Structure:
 │   ├── query_engine.py
 │   ├── query_scanner.py
 │   ├── youtube_storage.py
-│   ├── youtube_storage_api.py
+│   ├── youtube_searcher_app.py
 │   └── youtube_table.py
 └── tests
     ├── __init__.py
@@ -77,7 +77,7 @@ Project Structure:
     ├── test_query_engine.py
     ├── test_query_scanner.py
     ├── test_youtube_storage.py
-    ├── test_youtube_storage_api.py
+    ├── test_youtube_searcher_app.py
     └── test_youtube_table.py
 ```
 

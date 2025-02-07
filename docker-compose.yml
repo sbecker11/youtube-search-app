@@ -24,7 +24,7 @@ services:
     env_file:
       - .env
 
-  youtube_storage_api:
+  youtube_searcher_app:
     build:
       context: ./src
       dockerfile: Dockerfile

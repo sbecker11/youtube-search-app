@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Exit immediately if a command exits with a non-zero status
+# set -e
+
+
+export AWS_DEFAULT_REGION=us-east-1
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Add project-root/src to PYTHONPATH if it's not already present
+if [[ ":$PYTHONPATH:" != *":$(pwd)/src:"* ]]; then
+    export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+fi
+
+# Remove duplicate entries from PYTHONPATH
+export PYTHONPATH=$(echo "$PYTHONPATH" | awk -v RS=: -v ORS=: '!a[$1]++')
+
+echo "final PYTHONPATH $PYTHONPATH"
+
+# Install dependencies
+# pip install -r requirements.txt
+
+python src/youtube_searcher_app.py

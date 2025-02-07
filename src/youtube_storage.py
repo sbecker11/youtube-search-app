@@ -11,8 +11,8 @@ from youtube_table import YouTubeTable
 load_dotenv()
 
 DYNAMODB_URL = os.getenv('DYNAMODB_URL')
-RESPONSES_CONFIG_PATH = os.getenv('RESPONSES_CONFIG_PATH')
-SNIPPETS_CONFIG_PATH = os.getenv('SNIPPETS_CONFIG_PATH')
+RESPONSES_json_file_path = os.getenv('RESPONSES_json_file_path')
+SNIPPETS_json_file_path = os.getenv('SNIPPETS_json_file_path')
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,29 +30,41 @@ class YouTubeStorage:
 
     def __init__(self):
         if YouTubeStorage._instance is not None:
-            raise RuntimeError("This class is a singleton! Use get_singleton() method to get the instance.")
+            raise RuntimeError("YouTubeStorage is a singleton! Use get_singleton() method to get the instance.")
 
-        if not DYNAMODB_URL or not RESPONSES_CONFIG_PATH or not SNIPPETS_CONFIG_PATH:
-            raise ValueError("Environment variables for database configuration are not set.")
+        if not hasattr(self, 'initialized'):  # ensure that heavy initialization happens only once
 
-        dynamodb_url = DYNAMODB_URL
-        responses_config = self.load_config(RESPONSES_CONFIG_PATH)
-        snippets_config = self.load_config(SNIPPETS_CONFIG_PATH)
+            if not DYNAMODB_URL or not RESPONSES_json_file_path or not SNIPPETS_json_file_path:
+                raise ValueError("Environment variables for database configuration are not set.")
 
-        self.dynamodb = boto3.resource('dynamodb', endpoint_url=dynamodb_url)
-        self.responses_table = YouTubeTable(responses_config)
-        self.snippets_table = YouTubeTable(snippets_config)
+            dynamodb_url = DYNAMODB_URL
 
-    def load_config(self, config_path: str) -> Dict[str, any]:
+            responses_config = self.load_json_file(RESPONSES_json_file_path)
+            if not isinstance(responses_config, dict):
+                raise RuntimeError("responses_config if not a dict!")
+
+            snippets_config = self.load_json_file(SNIPPETS_json_file_path)
+            if not isinstance(snippets_config, dict):
+                raise RuntimeError("snippets_config if not a dict!")
+
+            # creating dynamodb resource
+            self.dynamodb = boto3.resource('dynamodb', endpoint_url=dynamodb_url)
+
+            # creating dynamodb tables
+            self.responses_table = YouTubeTable(responses_config)
+            self.snippets_table = YouTubeTable(snippets_config)
+
+            self.initialized = True  # Flag to show heavy initialization has been done
+
+    def load_json_file(self, json_file_path: str) -> Dict[str, any]:
         try:
-            with open(config_path, 'r', encoding='utf-8') as file:
-                config = json.load(file)
-                return config
+            with open(json_file_path, 'r', encoding='utf-8') as file:
+                return json.load(file)
         except FileNotFoundError:
-            logger.error("Configuration file not found at %s:", config_path)
+            logger.error("JSON file not found at %s:", json_file_path)
             return {}  # Return empty dict instead of raising an exception
         except json.JSONDecodeError as error:
-            logger.error("Error decoding JSON configuration file at %s: %s", config_path, error)
+            logger.error("Error decoding JSON file at %s: %s", json_file_path, error)
             return {}
 
     def find_all_subjects(self) -> List[str]:

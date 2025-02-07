@@ -4,7 +4,7 @@ src/__init__.py
 src/query_engine.py
 src/query_scanner.py
 src/youtube_storage.py
-src/youtube_storage_api.py
+src/youtube_searcher_app.py
 src/youtube_table.py
 tests/__init__.py
 tests/conftest.py
@@ -12,7 +12,7 @@ tests/test_conftest.py
 tests/test_query_engine.py
 tests/test_query_scanner.py
 tests/test_youtube_storage.py
-tests/test_youtube_storage_api.py
+tests/test_youtube_searcher_app.py
 tests/test_youtube_table.py
 your_package_name.egg-info/PKG-INFO
 your_package_name.egg-info/SOURCES.txt

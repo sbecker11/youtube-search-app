@@ -5,7 +5,7 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict
 
 import croniter
 from dotenv import load_dotenv
@@ -33,24 +33,33 @@ class QueryScanner:
         return cls._instance
 
     @classmethod
-    def get_singleton(cls, config:Optional[Dict[str,str]]=None, query_engine:Optional[QueryEngine]=None):
+    def get_singleton(cls):
         if cls._instance is None:
-            cls._instance = cls(config, query_engine)
+            cls._instance = cls()
         return cls._instance
 
     @classmethod
     def reset_singleton(cls):
         cls._instance = None
 
-    def __init__(self, config=None, query_engine=None):
+    def __init__(self):
+        if QueryScanner._instance is not None:
+            raise RuntimeError("QueryScanner is a singleton! Use get_singleton() method to get the instance.")
+
         if not hasattr(self, 'initialized'):  # ensure that heavy initialization happens only once
-            self.youtube_api_key = os.getenv('YOUTUBE_API_KEY')
-            if not self.youtube_api_key:
-                raise ValueError("YOUTUBE_API_KEY environment variable is not set")
-            self.config = config or self.load_json_file(os.getenv('QUERY_SCANNER_CONFIG_PATH', 'undefined'))
-            self.query_engine = query_engine or QueryEngine()
+
+            self.config = self.load_json_file(os.getenv('QUERY_SCANNER_CONFIG_PATH', 'undefined'))
+            if not isinstance(self.config, dict):
+                raise RuntimeError("config file not loaded")
+            logger.info("the QueryScanner instance config loaded")
+
             self.run_status = "Ready"
-            self.initialized = True  # Flag to show initialization has been done
+            logger.info("the QueryScanner instance run_status:%s", self.run_status)
+
+            self.query_engine = QueryEngine.get_singleton()
+            logger.info("the QueryScanner instance initialized with the QueryEngine instance")
+
+            self.initialized = True  # Flag to show heavy initialization has been done
 
     def load_json_file(self, json_file_path):
         """ raised exceptions FileNotFoundError, JSONDecodeError """
@@ -103,14 +112,7 @@ class QueryScanner:
             time.sleep(10)  # Sleep to prevent high CPU usage
 
 def main():
-    """ Main function to initialize the QueryScanner and start it.
-    """
-    scanner = QueryScanner.get_singleton()
-    scanner.start()
-    logger.info("started")
-    time.sleep(10)
-    scanner.set_run_status("Stopped")
-    logger.info("stopped")
+    logger.info("QueryScanner says hello")
 
 if __name__ == '__main__':
     main()

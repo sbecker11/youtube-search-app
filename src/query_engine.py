@@ -21,16 +21,41 @@ logger = logging.getLogger(__name__)
 
 class QueryEngineException(Exception):
     pass
-
 class QueryEngine:
     """ Submits queries to YouTube metadata API
         and stores each query request and its
         query response details to YouTubeStorage.
     """
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)  # Only pass the class, no additional args
+        return cls._instance
+
+    @classmethod
+    def get_singleton(cls):
+        if cls._instance is None:
+            cls._instance = cls(config)
+        return cls._instance
+
     def __init__(self):
-        youtube_api_key = os.getenv("YOUTUBE_API_KEY")
-        self.youtube = build('youtube', 'v3', developerKey=youtube_api_key)
-        self.youtube_storage = YouTubeStorage.get_singleton()
+        if QueryEngine._instance is not None:
+            raise RuntimeError("QueryEngine is a singleton! Use get_singleton() method to get the instance.")
+
+        if not hasattr(self, 'initialized'):  # ensure that heavy initialization happens only once
+
+            youtube_api_key = os.getenv("YOUTUBE_API_KEY")
+            if not youtube_api_key:
+                raise RuntimeError("QueryEngine YOUTUBE_API_KEY is undefined")
+
+            self.youtube_api_client = build('youtube', 'v3', developerKey=youtube_api_key)
+            logger.info("the QueryEngine instance initialized with youtube_api_client")
+
+            self.youtube_api_client_storage = YouTubeStorage.get_singleton()
+            logger.info("the QueryEngine instance initialized with the YouTubeStorage instance")
+
+            self.initialized = True  # Flag to show heavy initialization has been done
 
     def search(self, subject: str):
         request_params = {
@@ -42,7 +67,7 @@ class QueryEngine:
         try:
             params_string = self.stringify_params(**request_params)
             logger.info(f"request submitted with params: {params_string}")
-            youtube_request = self.youtube.search().list(**request_params)
+            youtube_request = self.youtube_api_client.search().list(**request_params)
             youtube_response = youtube_request.execute()
             logger.info("response received")
 
@@ -57,7 +82,7 @@ class QueryEngine:
         }
 
         logger.info("storing query response")
-        self.youtube_storage.save_query_response(query_engine, youtube_response)
+        self.youtube_api_client_storage.save_query_response(query_engine, youtube_response)
         logger.info("query response stored")
 
     def stringify_params(self,**params):
