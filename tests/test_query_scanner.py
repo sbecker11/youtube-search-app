@@ -2,6 +2,7 @@ import logging
 import os
 from unittest.mock import Mock, patch
 
+import pytest
 from dotenv import load_dotenv
 
 from query_scanner import QueryScanner, QueryScannerException
@@ -16,8 +17,17 @@ max_queries_per_scan = int(os.getenv("MAX_QUERIES_PER_SCAN", "10"))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class  FailedValidationException(Exception):
-    pass
+@pytest.fixture
+def internal_valid_config():
+    return {
+        "queries": ["Cowboys", "Indians"],
+        "cron_string": "* * * * *"
+    }
+
+@pytest.fixture
+def internal_scanner(internal_valid_config):
+    # Provide dependencies through the constructor
+    return QueryScanner(config=internal_valid_config, query_engine=Mock())
 
 class TestQueryScanner:
     def test_singleton_pattern(self):
@@ -30,44 +40,40 @@ class TestQueryScanner:
         # Test that the instance is the singleton instance
         assert scanner1 is QueryScanner.get_singleton()
 
-    def test_invalid_empty_queries(self):
-        try:
-            config = {"queries": [],"cron_string": "* * * * *"}
-            scanner = QueryScanner.get_singleton()
-            scanner.validate_config(config)
-            raise FailedValidationException("validated config with empty queries")
-        except QueryScannerException as error:
-            assert error in "empty list of queries"
+    def test_validate_empty_queries(self, internal_scanner):
+        """Test validation of empty queries list"""
+        invalid_config = {
+            "queries": [],
+            "cron_string": "* * * * *"
+        }
+        with pytest.raises(QueryScannerException) as exc:
+            internal_scanner.validate_config(invalid_config)
+        assert "empty list of queries" in str(exc.value)
 
-    def test_invalid_too_many_queries(self):
-        try:
-            queries = ["query1"] * (max_queries_per_scan + 1)
-            config = { "cron_string": "* * * * *", "queries": queries }
-            scanner = QueryScanner.get_singleton()
-            scanner.validate_config(config)
-            raise FailedValidationException("validated too many queries error")
-        except QueryScannerException as error:
-            assert error in "exceeded max queries"
+    def test_config_too_many_queries(self, internal_scanner):
+        """Test validation of too many queries"""
+        too_many_queries = max_queries_per_scan + 1
+        invalid_config = {
+            "queries": ["query" + str(i) for i in range(too_many_queries)],
+            "cron_string": "* * * * *"
+        }
+        with pytest.raises(QueryScannerException) as exc:
+            internal_scanner.validate_config(invalid_config)
+        assert "number of listed queries exceeds max_queries" in str(exc.value)
 
-    def test_invalid_cron_string(self):
-        config = { "queries": ["query1"],"cron_string": "hello"}
-        try:
-            scanner = QueryScanner.get_singleton()
-            scanner.validate_config(config)
-            raise FailedValidationException("validated invalid cron-string valid")
-        except QueryScannerException as error:
-            assert error in "validated invalid cron-string"
-
-    def test_valid_config(self):
-        try:
-            config = { "queries": ["query1"],"cron_string": "hello"}
-            scanner = QueryScanner.get_singleton()
-            scanner.validate_config(config)
-        except QueryScannerException as exc:
-            raise FailedValidationException("expected no exception") from exc
+    def test_validate_invalid_cron(self, internal_scanner):
+        """Test validation of invalid cron string"""
+        invalid_config = {
+            "queries": ["Cowboys"],
+            "cron_string": "invalid cron"
+        }
+        with pytest.raises(QueryScannerException) as exc:
+            internal_scanner.validate_config(invalid_config)
+        assert "cron_string does not match the required pattern" in str(exc.value)
 
     @patch('query_scanner.QueryEngine')
-    def test_run_queries(self, mock_query_engine):
+    def test_run_queries(self, mock_query_engine, internal_scanner):
+        """Test that queries are run correctly"""
         # Setup mock
         mock_search = Mock()
         mock_query_engine.return_value.search = mock_search
@@ -76,8 +82,7 @@ class TestQueryScanner:
         queries = ["Cowboys", "Indians"]
 
         # Run run_queries
-        query_scanner = QueryScanner.get_singleton()
-        query_scanner.run_queries(queries)
+        internal_scanner.run_queries(queries)
 
         # Verify search was called for each query
         assert mock_search.call_count == len(queries)
@@ -86,20 +91,15 @@ class TestQueryScanner:
 
     @patch('query_scanner.schedule')
     @patch('query_scanner.croniter')
-    def test_set_config(self, mock_schedule):
-        query_scanner = QueryScanner.get_singleton()
-        valid_config = { "queries":["fruits"], "chron_string": "* * * * *" }
-
-        # Test configuration setting with mocked schedule
+    def test_set_config(self, mock_schedule, internal_scanner, internal_valid_config):
+        """Test configuration setting with mocked schedule"""
         with patch('query_scanner.time.sleep'):  # Prevent actual sleeping
-            query_scanner.set_config(valid_config)
-            assert query_scanner.run_status == "Running"
+            internal_scanner.set_config(internal_valid_config)
+            assert internal_scanner.run_status == "Running"
             # Verify schedule was set up
             assert mock_schedule.every.called
 
-    def test_load_json_file_not_found(self):
-        try:
-            query_scanner = QueryScanner.get_singleton()
-            query_scanner.load_json_file("nonexistent.json")
-        except FileNotFoundError as error:
-            assert error is not None
+    def test_load_json_file_not_found(self, internal_scanner):
+        """Test handling of non-existent config file"""
+        result = internal_scanner.load_json_file("nonexistent.json")
+        assert result is None

@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  query_scanner:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/app
+      - ./data:/data
+    ports:
+      - "5002:5002"
+    env_file:
+      - .env
+
+  data_processor:
+    build:
+      context: ./data_processor
+      dockerfile: Dockerfile
+    volumes:
+      - ./data_processor:/app
+    ports:
+      - "5003:5003"
+    env_file:
+      - .env
+
+  youtube_storage_api:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/app
+      - ./data:/data
+    ports:
+      - "5004:5004"
+    env_file:
+      - .env

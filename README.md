@@ -2,21 +2,21 @@
 
 This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. `Dockerfile` and `docker-compose.yaml` reside at project-root, and are used to deploy assets to DockerDesktop.
 
-QueryEngine in `src/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. Query request and response data access operations are handled by the YouTubeStorage object. Example query response data may be found in /data/query_response_head.json and query_response_item.json
+QueryEngine in `src/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. Query `request` and `response` data access operations are handled by the YouTubeStorage object. Example query response data may be found in /data/query_response_head.json and query_response_item.json
 
-Search query requests and responses are stored in the Responses dynamoDb tables by YouTubeStorage in `src/youtube_storage.py`. Each response record has a unique primary key named `response_id`. All snippets associated with a response are stored in a Snippets table and refer to foreign key `response_id`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_data_config.json`
+Search query requests and responses are stored in the Responses dynamoDb tables by YouTubeStorage in `src/youtube_storage.py`. Each response record is given a unique primary key named `response_id` and stored in the Dynamo `Responses` table. All snippets associated with a response are stored in a `Snippets` table and refer to foreign key `response_id`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_table_config.json`
 
-YouTubStoreageApi from `src/youtube_storage_api.py` uses FastAPI to handle queries made against YouTubeStorage. OpenAI documentation is created during `docker-compose up --build` and resides at `/docs`.
+YouTubStoreageApi from `src/youtube_storage_api.py` uses FastAPI to handle queries made by project users against YouTubeStorage. OpenAI documentation is created during `docker-compose up --build` and resides at `/docs`.
 
-QueryScanner in `src/query_scanner.py` ses croniter and schedule to run a batch of queries to the YouTubeAPI via QueryEngine.
+QueryScanner in `src/query_scanner.py` is a singleton object that uses `croniter` and `schedule` to run a batch of queries to the YouTubeAPI via QueryEngine. The set to queries and the cron schedule are stored at `/data/query_scanner_config.json`.
 
 Credentials for YouTube and AWS are stored in a local `.env` file, which is never uploaded to the remote github repo.
 
 The structure of the `.env` file is:
-
 ```text
 YOUTUBE_API_KEY=*****
 AWS_ACCESS_KEY_ID=*****
+AWS_SECRET_ACCESS_KEY_ID=*****
 AWS_DEFAULT_REGION=us-west-2
 PYTHONPATH=src:tests
 DYNAMODB_URL=http://localstack:4566
@@ -31,30 +31,39 @@ Docker configuration files are found at project root. Python source modules are 
 important links:
 http://localhost:8000 link to the YouTubeStorageApi
 
+Object Relationships
+
+    User --------------- uses YouTubeStorageAPI URL
+    User --------------- queries data --------------------- YouTubeStorageAPI
+app YouTubeStorageAPI -- queries data in ------------------ YouTubeStorage
+    YouTubeStorage ----- uses AWS access keys in .env
+    QueryEngine -------- uses YOUTUBE_API key in .env
+    QueryEngine -------- sends request to ----------------- YouTube-Metadata-API (external)
+    QueryEngine -------- saves request+response to -------- YouTubeStorage
+app QueryScanner ------- uses /data/query_scanner_config.json
+app QueryScanner ------- calls QueryEngine
+
 Project Structure:
 ```tree
-├── Dockerfile
+.
 ├── README.md
-├── constraints.txt
 ├── data
 │   ├── query_response_head.json
 │   ├── query_response_item.json
 │   ├── query_scanner_config.json
 │   ├── responses_table_config.json
 │   └── snippets_table_config.json
-├── dist
-│   └── youtube-search-api.egg-info
-│       ├── PKG-INFO
-│       ├── SOURCES.txt
-│       ├── dependency_links.txt
-│       └── top_level.txt
-├── docker-compose.yaml
+├── data_processor
+│   ├── Dockerfile
+│   └── app.py
+├── docker-compose.yml
 ├── jest.config.js
 ├── localstack.pid
 ├── requirements.txt
 ├── scripts
 │   └── run-pytest
 ├── src
+│   ├── Dockerfile
 │   ├── __init__.py
 │   ├── query_engine.py
 │   ├── query_scanner.py

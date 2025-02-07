@@ -6,7 +6,6 @@ flask
 pandas
 numpy
 wheel
--c constraints.txt
 
 google-api-core==2.24.1
 google-api-python-client==2.160.0
