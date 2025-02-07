@@ -1,22 +1,15 @@
 {
-  "TableName": "Snippets",
+  "TableName": "Responses",
+
   "KeySchema": [
     {
-      "AttributeName": "snippet.channelId",
+      "AttributeName": "etag",
       "KeyType": "HASH"
-    },
-    {
-      "AttributeName": "snippet.publishedAt",
-      "KeyType": "RANGE"
     }
   ],
   "AttributeDefinitions": [
     {
-      "AttributeName": "snippet.channelId",
-      "AttributeType": "S"
-    },
-    {
-      "AttributeName": "snippet.publishedAt",
+      "AttributeName": "etag",
       "AttributeType": "S"
     }
   ],

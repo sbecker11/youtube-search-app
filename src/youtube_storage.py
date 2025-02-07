@@ -55,8 +55,16 @@ class YouTubeStorage:
         # creating dynamodb resource
         self.dynamodb = boto3.resource('dynamodb', endpoint_url=self.dynamo_url)
 
-        self.responses_table = YouTubeTable(self.responses_config)
-        self.snippets_table = YouTubeTable(self.snippets_config)
+        try:
+            self.responses_table = YouTubeTable(self.responses_config)
+        except  boto3.exceptions.Boto3Error as error:
+            logger.error("failed attempt to create YouTubeTable for Responses table error:%s", {error})
+            raise error
+        try:
+            self.snippets_table = YouTubeTable(self.snippets_config)
+        except  boto3.exceptions.Boto3Error as error:
+            logger.error("failed attempt to create YouTubeTable for Snippets table error:%s", {error})
+            raise error
 
         logger.info("the YouTubeStorage instance is now initialized with dynamoDb tables")
 
@@ -100,34 +108,34 @@ class YouTubeStorage:
         logger.info("Found %d snippets for response_id: %s", len(snippets), response_id)
         return snippets
 
-    def get_response_row(self, youtube_response: Dict[str, any], query_engine: Dict[str, str]) -> Dict[str, any]:
+    def get_response_row(self, query_request: Dict[str, any], query_response: Dict[str, str]) -> Dict[str, any]:
         response_id = str(uuid.uuid4())  # Generate a unique primary key
         response_row = {
             'responseId': response_id,  # PK
-            'etag': youtube_response.get('etag', ''),
-            'kind': youtube_response.get('kind', ''),
-            "nextPageToken": youtube_response.get('nextPageToken', ''),
-            "regionCode": youtube_response.get('regionCode', ''),
+            'etag': query_response.get('etag', ''),
+            'kind': query_response.get('kind', ''),
+            "nextPageToken": query_response.get('nextPageToken', ''),
+            "regionCode": query_response.get('regionCode', ''),
             "pageInfo": {
-                "totalResults": youtube_response.get('pageInfo', {}).get('totalResults', 0),
-                "resultsPerPage": youtube_response.get('pageInfo', {}).get('resultsPerPage', 0)
+                "totalResults": query_response.get('pageInfo', {}).get('totalResults', 0),
+                "resultsPerPage": query_response.get('pageInfo', {}).get('resultsPerPage', 0)
             },
-            "query": query_engine.get('query', ''),
-            "requestSubmittedAt": query_engine.get('requestSubmittedAt', datetime.utcnow().isoformat()),
+            "requestSubmittedAt": query_request.get('requestSubmittedAt', datetime.utcnow().isoformat()),
             "responseReceivedAt": datetime.utcnow().isoformat(),
-            "query": {
-                "part": query_engine.get('part', ''),
-                "q": query_engine.get('q', ''),
-                "type": query_engine.get('type', ''),
-                "maxResults": query_engine.get('maxResults', '')
+            "queryDetails": {
+                "part": query_request.get('part', ''),
+                "q": query_request.get('q', ''),
+                "type": query_request.get('type', ''),
+                "maxResults": query_request.get('maxResults', ''),
+                "query": query_request.get('query', '')
             }
         }
         logger.info("Generated response row with ID: %s", response_id)
         return response_row
 
-    def get_snippet_rows(self, youtube_response: Dict[str, any], response_id: str) -> List[Dict[str, any]]:
+    def get_snippet_rows(self, query_response: Dict[str, any], response_id: str) -> List[Dict[str, any]]:
         snippet_rows = []
-        for item in youtube_response.get('items', []):
+        for item in query_response.get('items', []):
             snippet = item.get('snippet', {})
             snippet_row = {
                 'responseId': response_id,  # FK to responses_table
@@ -143,14 +151,16 @@ class YouTubeStorage:
         logger.info("Generated %d snippet rows for response ID: %s", len(snippet_rows), response_id)
         return snippet_rows
 
-    def add_request_response(self, youtube_response: Dict[str, any], query_engine: Dict[str, str]):
+    def add_query_request_and_response(self, query_request: Dict[str, any], query_response: Dict[str, any]):
         """Add a request and its response to the database."""
-        logger.info("Adding request and response to the database.")
-        response_row = self.get_response_row(youtube_response, query_engine)
-        snippet_rows = self.get_snippet_rows(youtube_response, response_row['responseId'])
+        logger.info("computing response_row from query_request and query_response.")
+        response_row = self.get_response_row(query_request, query_response)
+
+        logger.info("computing snippet_rows from query_response.")
+        snippet_rows = self.get_snippet_rows(query_response, response_row['responseId'])
 
         try:
-            # Add response row to the responses table
+            # Add response row to the responses table (not batched)
             self.responses_table.add_item(response_row)
             logger.info("Added response row with ID: %s", response_row['responseId'])
 

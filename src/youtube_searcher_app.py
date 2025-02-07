@@ -75,5 +75,5 @@ class YouTubeSearcherApp:
 
 if __name__ == "__main__":
     logger.info("Welcome to YouTubeSearcherApp")
-    app_instance = YouTubeSearcherApp.get_singleton()
-    app = app_instance.get_fast_api_app()
+    APP_INSTANCE = YouTubeSearcherApp.get_singleton()
+    app = APP_INSTANCE.get_fast_api_app()

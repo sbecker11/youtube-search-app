@@ -60,6 +60,8 @@ class QueryScanner:
         self.query_engine = QueryEngine.get_singleton()
         logger.info("the QueryScanner instance initialized with the QueryEngine instance")
 
+        logger.info("the QueryScanner instance has started")
+        self.start()
         self.initialized = True  # Flag to show heavy initialization has been done
 
     def load_json_file(self, json_file_path):
@@ -72,9 +74,9 @@ class QueryScanner:
             raise QueryScannerException("empty list of queries")
         if len(config["queries"]) > max_queries_per_scan:
             raise QueryScannerException("number of listed queries exceeds max_queries")
-        cron_string = config.get("cron_string")
+        cron_string = config.get("cron-string")
         if not cron_string or not croniter.croniter.is_valid(cron_string):
-            raise QueryScannerException("cron_string does not match the required pattern")
+            raise QueryScannerException("cron-string does not match the required pattern")
 
     def run_queries(self, queries):
         if len(queries) > max_queries_per_scan:
@@ -102,20 +104,20 @@ class QueryScanner:
             All times are tracked in utc timezone.
         """
         queries = self.config['queries']
-        cron_string = self.config['cron_string']
+        cron_string = self.config['cron-string']
         logger.info("cron_string: %s", cron_string)
         cron = croniter.croniter(cron_string, datetime.utcnow())
-        next_execution = cron.get_next(datetime.utcnow())
-        logger.info("*"*80)
+        next_execution = cron.get_next(datetime)
+        logger.info("*" * 80)
         logger.info("first execution scheduled for %s", next_execution.isoformat())
         self.set_run_status("Running")
         while self.get_run_status() != "Stopped":
             utcnow = datetime.utcnow()
             if utcnow >= next_execution:
-                logger.info("*"*80)
+                logger.info("*" * 80)
                 logger.info("execution starting at %s", utcnow.isoformat())
                 self.run_queries(queries)
-                next_execution = cron.get_next(datetime.utcnow())
+                next_execution = cron.get_next(datetime)
                 logger.info("next execution scheduled for %s", next_execution.isoformat())
             time.sleep(10)  # Sleep to prevent high CPU usage
 

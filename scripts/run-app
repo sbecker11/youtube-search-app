@@ -29,9 +29,14 @@ if [ "$?" -ne "0" ]; then
   exit 1
 fi
 
-# start dynamodb in this terminal in detached mode
-echo "starting dynamodb at http://localhost:4566"
-docker-compose -f docker-compose-dynamodb-only.yml up -d --remove-orphans
+APP_NAME=run-docker-compose
+if ! pgrep -f "$APP_NAME" > /dev/null; then
+    # No instance found, safe to run
+    osascript ./scripts/run-docker-compose.scpt
+    echo "$APP_NAME launched."
+els
+    echo "$APP_NAME is already running."
+fi
 
 # verify dynamodb is running
 DYNAMODB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4566)

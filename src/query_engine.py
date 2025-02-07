@@ -53,7 +53,7 @@ class QueryEngine:
         self.youtube_api_client = build('youtube', 'v3', developerKey=youtube_api_key)
         logger.info("the QueryEngine instance is now initialized with youtube_api_client")
 
-        self.youtube_api_client_storage = YouTubeStorage.get_singleton()
+        self.youtube_storage = YouTubeStorage.get_singleton()
         logger.info("the QueryEngine instance is now initialized with the YouTubeStorage instance")
 
         self.initialized = True  # Flag to show heavy initialization has been done
@@ -76,15 +76,16 @@ class QueryEngine:
             logger.error(f"An HTTP error occurred: {error}")
             raise QueryEngineException(error)
 
-        query_engine = {
-            'subject': subject,
-            'requestSubmittedAt': datetime.utcnow().isoformat(),
-            **request_params
-        }
+        # youtube_request = {
+        #     'subject': subject,
+        #     'requestSubmittedAt': datetime.utcnow().isoformat(),
+        #     **request_params
+        # }
 
-        logger.info("storing query response")
-        self.youtube_api_client_storage.save_query_response(query_engine, youtube_response)
-        logger.info("query response stored")
+        self.youtube_storage.add_request_and_response(youtube_request, youtube_response)
+
+        logger.info("storing query request and query response")
+        self.youtube_storage.add_query_response(query_engine, youtube_response)
 
     def stringify_params(self,**params):
         """ create a dictionary and then a string given a set of params """
