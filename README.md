@@ -28,6 +28,147 @@ MAX_QUERIES_PER_SCAN=100
 
 Docker configuration files are found at project root. Python source modules are found at project root under the `src` directory. Pytest modules are found in `/tests` OpenAPI documentation files are found in `/docs`.
 
+### Useful aws-cli commands for querying the dynamodb tables:
+>```bash
+aws dynamodb list-tables --endpoint-url http://localhost:4566 --region us-west-2
+
+aws dynamodb describe-table --table-name Responses \
+    --endpoint-url http://localhost:4566 --region us-west-2
+
+ws dynamodb describe-table --table-name Snippets \
+    --endpoint-url http://localhost:4566 --region us-west-2
+```
+
+### pipe the aws query results to jq to extract the queryDetails.query
+from each item:
+```bash
+aws dynamodb scan --table-name Responses \
+--endpoint-url http://localhost:4566 \
+--region us-west-2 | \
+jq -r '.Items[] | .queryDetails.M.q.S'
+```
+### another query:
+```bash
+
+ aws dynamodb query \
+    --table-name Responses \
+    --key-condition-expression "#etag = :etagval" \
+    --expression-attribute-values '{":etagval":{"S":"SpH9JnQTah47E6gjAFSuzA76c8M"}}' \
+    --expression-attribute-names '{"#etag":"response.etag", "#queryDetails":"queryDetails", "#receivedAt":"responseReceivedAt"}' \
+    --endpoint-url http://localhost:4566 \
+    --region us-west-2 \
+    --projection-expression "#etag, #queryDetails, #receivedAt" \
+    --select SPECIFIC_ATTRIBUTES
+```
+### Explanation:
+
+1. **`aws dynamodb query`** - This command initiates a query operation on DynamoDB.
+
+2. **`--table-name Responses`** - Specifies the name of the table you're querying, which in this case is `"Responses"`.
+
+3. **`--key-condition-expression "#etag = :etagval"`**:
+   - `#etag` is a placeholder for an attribute name.
+   - `=` is the condition operator for equality.
+   - `:etagval` is a placeholder for the value you're comparing against.
+   - This condition filters items where the `response.etag` attribute equals the specific value provided.
+
+4. **`--expression-attribute-values '{":etagval":{"S":"SpH9JnQTah47E6gjAFSuzA76c8M"}}'`** - Defines the actual value for `:etagval`. Here, `"S"` indicates it's a String type, and the value is the `etag` you're searching for.
+
+5. **`--expression-attribute-names '{"#etag":"response.etag", "#queryDetails":"queryDetails", "#receivedAt":"responseReceivedAt"}'`** -
+   - Maps placeholders (`#etag`, `#queryDetails`, `#receivedAt`) to the actual attribute names in your table.
+   - This is necessary because `response` is a reserved word in DynamoDB expressions, so we need to escape it.
+
+6. **`--endpoint-url http://localhost:4566`** - Specifies that this query should be sent to a local DynamoDB instance running on port `4566`, which is commonly used for DynamoDB Local or DynamoDB in Docker for development purposes.
+
+7. **`--region us-west-2`** - Indicates the AWS region to use. Even for local instances, specifying a region can be necessary for some AWS CLI operations.
+
+8. **`--projection-expression "#etag, #queryDetails, #receivedAt"`** -
+   - This specifies which attributes to return in the result set.
+   - Here, we're asking for `response.etag`, `queryDetails`, and `responseReceivedAt`.
+   - Using placeholders ensures we avoid issues with reserved keywords.
+
+9. **`--select SPECIFIC_ATTRIBUTES`** -
+   - Tells DynamoDB to return only the attributes specified in the projection expression, rather than the entire item.
+   - This can significantly reduce the amount of data transferred, improving performance.
+
+
+aws dynamodb put-item --table-name MyTable \
+    --item '{"id": {"S": "123"}, "name": {"S": "Test Item"}}' \
+    --endpoint-url http://localhost:4566 --region us-west-2
+
+aws dynamodb delete-item --table-name MyTable \
+    --key '{"id": {"S": "123"}}' \
+    --endpoint-url http://localhost:4566 --region us-west-2
+
+<!-- aws configure set aws_access_key_id fakeKey --profile local
+aws configure set aws_secret_access_key fakeSecret --profile local
+aws configure set region us-west-2 --profile local -->
+
+# sort
+aws dynamodb query \
+    --table-name MyTable \
+    --key-condition-expression "partitionKey = :pk" \
+    --expression-attribute-values '{":pk": {"S": "someValue"}}' \
+    --scan-index-forward false \
+    --limit 10 \
+    --endpoint-url http://localhost:4566 --region us-west-2
+
+--scan-index-forward false → Retrieves the latest items first.
+
+Replace partitionKey with your actual primary key.
+
+if no paritioni key:
+aws dynamodb scan \
+    --table-name MyTable \
+    --endpoint-url http://localhost:4566 --region us-west-2 \
+    --query 'Items | sort_by(@, &timestamp) | reverse(@)[:10]'
+
+The reverse(@)[:10] gets the last 10 items.
+
+boto3 queries
+
+# Query with sorting (assuming timestamp exists)
+response = table.query(
+    KeyConditionExpression="partitionKey = :pk",
+    ExpressionAttributeValues={":pk": "someValue"},
+    ScanIndexForward=False,  # Fetch latest records first
+    Limit=10
+)
+# Print results
+for item in response['Items']:
+    print(item)
+
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Responses'
+
+SELECT DISTINCT AttributeName FROM TableName
+
+SELECT AttributeName FROM TableName GROUP BY AttributeName
+
+
+
+import boto3
+from collections import defaultdict
+
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('YourTableName')
+
+unique_values = defaultdict(set)
+response = table.scan()
+for item in response['Items']:
+    if 'AttributeName' in item:
+        unique_values['AttributeName'].add(item['AttributeName'])
+
+print(unique_values['AttributeName'])
+
+    raise QueryEngineException(error)
+
+
+```
+
+
+
+
+
 important links:
 http://localhost:8000 link to the YouTubeSearcherApp
 
@@ -105,9 +246,9 @@ docker ps
 
 This command will display a list of all running containers, including their container IDs, names, and status.
 
-## Running LocalStack with DynamoDB
+## Running LocalStack with DynamoDb
 
-To start the LocalStack service with DynamoDB, use the following command:
+To start the LocalStack service with DynamoDb, use the following command:
 
 ```sh
 docker-compose -f docker-compose-dynamodb-only.yml up

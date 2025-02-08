@@ -4,6 +4,7 @@ import os
 from typing import Dict
 
 import boto3
+from dynamodb_utils import DynamoDbItemPreProcessor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -12,24 +13,28 @@ class YouTubeTableException(Exception):
     pass
 
 class YouTubeTable:
-    def __init__(self, config:Dict[str,str]):
+    def __init__(self, table_config:Dict[str,str]):
 
         try:
             self.dynamodb_url = os.getenv('DYNAMODB_URL')
             self.dynamodb = boto3.resource('dynamodb', endpoint_url=self.dynamodb_url)
-            self.config = config
-            self.table_name = self.config['TableName']
+            self.table_config = table_config
+            self.table_name = self.table_config['TableName']
 
             self.table = self.find_table_by_name(self.table_name)
 
             if not self.table:
                 self.table = self.create_table()
 
+            self.item_preprocessor = \
+                DynamoDbItemPreProcessor(self.table_config)
+
             # initialize the batch list
             self.items_to_add = []
 
+
         except boto3.exceptions.Boto3Error as error:
-            print(f"Error initializing DynamoDB resource: {error}")
+            print(f"Error initializing DynamoDb resource: {error}")
             raise
         except FileNotFoundError as error:
             print(f"Configuration file not found: {error}")
@@ -55,9 +60,12 @@ class YouTubeTable:
             print(f"Error checking if table exists: {error}")
             raise
 
+    def get_preprocessed_item(self, item):
+        return self.item_preprocessor.get_preprocessed_item(item)
+
     def create_table(self):
         """
-        Create the DynamoDB table with the loaded configuration.
+        Create the DynamoDb table with the loaded configuration.
 
         The configuration should include:
         - KeySchema: Specifies the attributes that make up the primary key for the table.
@@ -86,7 +94,7 @@ class YouTubeTable:
         }
         """
         try:
-            new_table = self.dynamodb.create_table(**self.config)
+            new_table = self.dynamodb.create_table(**self.table_config)
             return new_table
         except boto3.exceptions.Boto3Error as error:
             logger.eror("An error occurred in create_table table: %s: %s", self.table_name, {error})
@@ -94,7 +102,7 @@ class YouTubeTable:
 
     def find_table_by_name(self, table_name):
         """
-        Check if a DynamoDB table exists by its name.
+        Check if a DynamoDb table exists by its name.
 
         :param table_name: The name of the table to check for existence.
         :return: True if the table exists, False otherwise.

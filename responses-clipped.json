@@ -1,0 +1,56 @@
+{
+  "Items": [
+    {
+      "regionCode": {
+        "S": "US"
+      },
+      "requestSubmittedAt": {
+        "S": "2025-02-08T14:43:03.542129"
+      },
+      "kind": {
+        "S": "youtube#searchListResponse"
+      },
+      "nextPageToken": {
+        "S": "CBkQAA"
+      },
+      "pageInfo": {
+        "M": {
+          "totalResults": {
+            "N": "1000000"
+          },
+          "resultsPerPage": {
+            "N": "25"
+          }
+        }
+      },
+      "queryDetails": {
+        "M": {
+          "q": {
+            "S": "SpaceX"
+          },
+          "type": {
+            "S": "video"
+          },
+          "maxResults": {
+            "N": "25"
+          },
+          "part": {
+            "S": "snippet"
+          },
+          "query": {
+            "S": ""
+          }
+        }
+      },
+      "response.etag": {
+        "S": "SpH9JnQTah47E6gjAFSuzA76c8M"
+      },
+      "responseId": {
+        "S": "8f9f7ac5-4fc8-4509-a321-46be90d7d2e2"
+      },
+      "responseReceivedAt": {
+        "S": "2025-02-08T14:43:03.542254"
+      }
+    }
+  ]
+}

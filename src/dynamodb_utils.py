@@ -1,16 +1,56 @@
+import json
 import logging
+from typing import Dict
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class DynamoDBItemPreProcessor:
-    def __init__(self, the_table_config, attribute_name_prefix=''):
-        self.attribute_name_prefix = attribute_name_prefix
+class DynamoDbUtils:
+
+    @classmethod
+    def singularize(cls, word):
+        """
+        Convert a plural English word to its singular form.
+
+        Args:
+            word (str): The plural word to convert
+
+        Returns:
+            str: The singular form of the word
+        """
+        if word.endswith('ies'):
+            return word[:-3] + 'y'
+        elif word.endswith('s'):
+            return word[:-1]
+        return word
+
+    @classmethod
+    def load_json_file(cls, json_file_path: str) -> Dict[str, any]:
+        try:
+            with open(json_file_path, 'r', encoding='utf-8') as file:
+                return json.load(file)
+        except FileNotFoundError:
+            logger.error("JSON file not found at %s:", json_file_path)
+            return {}  # Return empty dict instead of raising an exception
+        except json.JSONDecodeError as error:
+            logger.error("Error decoding JSON file at %s: %s", json_file_path, error)
+            return {}
+
+class DynamoDbItemPreProcessor:
+    def __init__(self, the_table_config, attribute_name_prefix=None):
         self.key_prefixes = {}
         self.type_mappings = {}
         self.table_config = the_table_config
+        self.table_name = the_table_config["TableName"]
+
+        # Default for table_name "Responses" is "response."
+        # Default for table_name "Snippets" is "snippet."
+        # Default for table_name "Parties" is "party."
+        if not attribute_name_prefix:
+            attribute_name_prefix = DynamoDbUtils.singularize(self.table_name.lower()) + '.'
+        self.attribute_name_prefix = attribute_name_prefix
 
         for attr in self.table_config['AttributeDefinitions']:
             if attr['AttributeName'].startswith(self.attribute_name_prefix):
@@ -18,8 +58,9 @@ class DynamoDBItemPreProcessor:
                 self.key_prefixes[original_name] = self.attribute_name_prefix
                 self.type_mappings[original_name] = attr['AttributeType']
 
-    def process_item(self, raw_item):
-        processed_item = {}
+
+    def get_preprocessed_item(self, raw_item):
+        pre_processed_item = {}
         for attr_name, value in raw_item.items():
             if attr_name in self.key_prefixes:
                 prefixed_name = f"{self.key_prefixes[attr_name]}{attr_name}"
@@ -27,19 +68,19 @@ class DynamoDBItemPreProcessor:
                 if type_mapping:
                     try:
                         if type_mapping == 'S':
-                            processed_item[prefixed_name] = self.to_string(value)
+                            pre_processed_item[prefixed_name] = self.to_string(value)
                         elif type_mapping == 'N':
-                            processed_item[prefixed_name] = self.to_number(value)
+                            pre_processed_item[prefixed_name] = self.to_number(value)
                         elif type_mapping == 'B':
-                            processed_item[prefixed_name] = self.to_boolean(value)
+                            pre_processed_item[prefixed_name] = self.to_boolean(value)
                         else:
                             raise ValueError(f"type_mapping:{type_mapping} not supported")
                     except ValueError as error:
                         logger.error("type_mapping:%s for value:%s error: %s", type_mapping, value, error)
             else:
                 # Non-key attributes remain unchanged
-                processed_item[attr_name] = value
-        return processed_item
+                pre_processed_item[attr_name] = value
+        return pre_processed_item
 
     def to_number(self,value):
         try:
@@ -71,7 +112,7 @@ class DynamoDBItemPreProcessor:
     @classmethod
     def example_usage(cls, a_snippets_table_config):
         # Usage
-        pre_processor = DynamoDBItemPreProcessor(a_snippets_table_config, attribute_name_prefix="snippet.")
+        pre_processor = DynamoDbItemPreProcessor(a_snippets_table_config, attribute_name_prefix="snippet.")
         raw_item = {
             'channelId': 'UCRAu2aXcH-B5h9SREfyhXuA',
             'publishedAt': '2025-02-05T11:35:37Z',
@@ -83,9 +124,9 @@ class DynamoDBItemPreProcessor:
         rows = [raw_item]  # Assuming rows is a list of raw items
         for raw_item in rows:
             print(f"raw_item: {raw_item}")
-            processed_item = pre_processor.process_item(raw_item)
-            print(f"processed_item: {processed_item}")
-        processed_rows.append(processed_item)
+            pre_processed_item = pre_processor.get_preprocessed_item(raw_item)
+            print(f"pre_processed_item: {pre_processed_item}")
+        processed_rows.append(pre_processed_item)
 
 if __name__ == "__main__":
 
@@ -118,4 +159,4 @@ if __name__ == "__main__":
         }
     }
 
-    DynamoDBItemPreProcessor.example_usage(snippets_table_config)
+    DynamoDbItemPreProcessor.example_usage(snippets_table_config)

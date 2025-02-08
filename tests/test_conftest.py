@@ -10,7 +10,7 @@ def test_dynamodb_fixture(dynamodb):
         AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
         ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5}
     )
-    assert table.table_status == 'ACTIVE', "DynamoDB should be mocked and table should be active"
+    assert table.table_status == 'ACTIVE', "DynamoDb should be mocked and table should be active"
 
     assert isinstance(youtube_storage, YouTubeStorage), "Fixture should return a YouTubeStorage instance"
     # Additional checks on the state of youtube_storage, like ensuring tables exist

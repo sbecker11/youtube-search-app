@@ -1,6 +1,5 @@
 # pylint: disable=W1203 # Use lazy % formatting in logging functions
 
-import json
 import logging
 import os
 import time
@@ -9,7 +8,7 @@ from typing import Dict
 
 import croniter
 from dotenv import load_dotenv
-
+from dynamodb_utils import DynamoDbUtils
 from query_engine import QueryEngine, QueryEngineException
 
 # Load environment variables from .env file
@@ -49,7 +48,7 @@ class QueryScanner:
         elif self.initialized:
             return
 
-        self.config = self.load_json_file(os.getenv('QUERY_SCANNER_CONFIG_PATH', 'undefined'))
+        self.config = DynamoDbUtils.load_json_file(os.getenv('QUERY_SCANNER_CONFIG_PATH', 'undefined'))
         if not isinstance(self.config, dict):
             raise RuntimeError("config file not loaded")
         logger.info("the QueryScanner instance config loaded")
@@ -60,14 +59,11 @@ class QueryScanner:
         self.query_engine = QueryEngine.get_singleton()
         logger.info("the QueryScanner instance initialized with the QueryEngine instance")
 
-        logger.info("the QueryScanner instance has started")
-        self.start()
+        self.start_on_load = False
+        if self.start_on_load:
+            logger.info("the QueryScanner instance has started")
+            self.start()
         self.initialized = True  # Flag to show heavy initialization has been done
-
-    def load_json_file(self, json_file_path):
-        """ raised exceptions FileNotFoundError, JSONDecodeError """
-        with open(json_file_path, 'r', encoding='utf-8') as json_file:
-            return json.load(json_file)
 
     def validate_config(self, config:Dict):
         if not config.get("queries"):
@@ -98,13 +94,23 @@ class QueryScanner:
         self.run_status = run_status
         logger.info("run_status set to %s", self.run_status)
 
+    def get_cron_string(self):
+        return self.config['cron_string']
+
+    def get_queries(self):
+        return self.config['queries']
+
+    def run_once(self):
+        """ Execute the queries one time
+        """
+        self.run_queries(self.get_queries())
+
     def start(self):
         """ Start running the schedule that calls run_queries
             according to the configured cron schedule.
             All times are tracked in utc timezone.
         """
-        queries = self.config['queries']
-        cron_string = self.config['cron-string']
+        cron_string = self.get_cron_string()
         logger.info("cron_string: %s", cron_string)
         cron = croniter.croniter(cron_string, datetime.utcnow())
         next_execution = cron.get_next(datetime)
@@ -116,13 +122,19 @@ class QueryScanner:
             if utcnow >= next_execution:
                 logger.info("*" * 80)
                 logger.info("execution starting at %s", utcnow.isoformat())
-                self.run_queries(queries)
+                self.run_queries(self.get_queries())
                 next_execution = cron.get_next(datetime)
                 logger.info("next execution scheduled for %s", next_execution.isoformat())
             time.sleep(10)  # Sleep to prevent high CPU usage
 
 def main():
-    logger.info("QueryScanner says hello")
+    scanner = QueryScanner.get_singleton()
+
+    logger.info("QueryScanner running queries:")
+    for query in scanner.get_queries():
+        logger.info(query)
+
+    # scanner.run_once()
 
 if __name__ == '__main__':
     main()

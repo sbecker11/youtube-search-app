@@ -67,4 +67,4 @@ def youtube_storage(dynamodb):
     try:
         yield YouTubeStorage(dynamodb_resource=dynamodb)
     except dynamodb.meta.client.exceptions.ResourceInUseException as error:
-        pytest.fail(f"Failed to set up mock DynamoDB tables: {error}")
+        pytest.fail(f"Failed to set up mock DynamoDb tables: {error}")

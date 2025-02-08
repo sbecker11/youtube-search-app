@@ -1,0 +1,41 @@
+# Optionally, generate HTML with ReDoc for serving
+
+DOCS_DIR="./docs2"
+cat <<EOF > "$DOCS_DIR/index.html"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ReDoc</title>
+    <!-- needed for adaptive design -->
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js" rel="stylesheet">
+</head>
+<body>
+    <redoc spec-url='./openapi.json'></redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
+</body>
+</html>
+EOF
+
+echo "ReDoc HTML generated at $DOCS_DIR/index.html"
+
+Explanation:
+Script Start: The shebang #!/bin/bash tells the system this is a bash script.
+Variables: API_URL is where your FastAPI app is running, and DOCS_DIR is where you want to save the docs.
+Directory Creation: Checks if the directory exists, creates it if it doesn't.
+Fetching OpenAPI Spec: Uses curl to fetch the OpenAPI JSON and save it to the specified directory.
+Validation: There's a comment for where you could add Python validation if you have Python and openapi-spec-validator installed.
+Generate HTML: Optionally generates an HTML file with ReDoc to serve the documentation.
+
+To Use:
+Make sure your FastAPI application is running.
+Save this script to a file named generate_docs.sh.
+Make the script executable:
+bash
+chmod +x generate_docs.sh
+Run the script:
+bash
+./generate_docs.sh
+
+This script will fetch your OpenAPI spec and save it in the docs folder. It also generates an HTML file with ReDoc for viewing the documentation, assuming you want to serve it with a web server later. Remember to adjust API_URL if your FastAPI app runs on a different host or port.

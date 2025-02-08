@@ -1,0 +1,29 @@
+#!/bin/bash
+
+#!/bin/bash
+
+# URL where your FastAPI app is running
+API_URL="http://localhost:8000/openapi.json"
+
+# Directory where to save the docs
+DOCS_DIR="./docs"
+
+# Check if docs directory exists, if not, create it
+if [ ! -d "$DOCS_DIR" ]; then
+    mkdir -p "$DOCS_DIR"
+fi
+
+# Fetch OpenAPI spec and save it
+curl -s "$API_URL" > "$DOCS_DIR/openapi.json"
+
+# Check if curl was successful
+if [ $? -eq 0 ]; then
+    echo "OpenAPI spec saved to $DOCS_DIR/openapi.json"
+else
+    echo "Failed to fetch OpenAPI spec from $API_URL"
+    exit 1
+fi
+
+# Optionally, you can add validation here with external tools like openapi-spec-validator
+# This requires Python and openapi-spec-validator to be installed
+# python -c "import json; from openapi_spec_validator import validate_spec; validate_spec(json.load(open('$DOCS_DIR/openapi.json')))"

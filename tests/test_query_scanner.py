@@ -1,5 +1,6 @@
 import logging
 import os
+from dynamodb_utils import DynamoDbUtils
 from unittest.mock import Mock, patch
 
 import pytest
@@ -99,7 +100,7 @@ class TestQueryScanner:
             # Verify schedule was set up
             assert mock_schedule.every.called
 
-    def test_load_json_file_not_found(self, internal_scanner):
+    def test_load_json_file_not_found(self):
         """Test handling of non-existent config file"""
-        result = internal_scanner.load_json_file("nonexistent.json")
+        result = DynamoDbUtils.load_json_file("nonexistent.json")
         assert result is None
