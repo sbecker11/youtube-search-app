@@ -29,15 +29,6 @@ if [ "$?" -ne "0" ]; then
   exit 1
 fi
 
-APP_NAME=run-docker-compose
-if ! pgrep -f "$APP_NAME" > /dev/null; then
-    # No instance found, safe to run
-    osascript ./scripts/run-docker-compose.scpt
-    echo "$APP_NAME launched."
-els
-    echo "$APP_NAME is already running."
-fi
-
 # verify dynamodb is running
 DYNAMODB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4566)
 if [ "$DYNAMODB_STATUS" -ne 200 ]; then

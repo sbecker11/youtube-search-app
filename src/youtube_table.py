@@ -144,13 +144,23 @@ class YouTubeTable:
         """
         Flush the batch of items to the YouTubeTable.
         """
+        num_items = len(self.items_to_add)
+        if num_items == 0:
+            logger.info("flush of empty batch ignored")
+            return
         try:
+            logger.info("flushing %d items from batch", num_items)
             with self.table.batch_writer() as batch:
                 for item in self.items_to_add:
+
+                    print(f"putting item\n{json.dumps(item, indent=2)}")
                     batch.put_item(Item=item)
+
             self.reset_batch()
         except boto3.exceptions.Boto3Error as error:
-            logger.eror("An error occurred in flush_batch for table: %s: %s", self.table_name, {error})
+            logger.eror("An error occurred in flush_batch with %d items for table: %s: %s",
+                len(self.items_to_add), self.table_name, {error})
+            logger.info()
             raise
 
     def get_item(self, key):

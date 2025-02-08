@@ -76,16 +76,15 @@ class QueryEngine:
             logger.error(f"An HTTP error occurred: {error}")
             raise QueryEngineException(error)
 
-        # youtube_request = {
-        #     'subject': subject,
-        #     'requestSubmittedAt': datetime.utcnow().isoformat(),
-        #     **request_params
-        # }
+        query_request = {
+            'subject': subject,
+            'requestSubmittedAt': datetime.utcnow().isoformat(),
+            **request_params
+        }
+        query_response = youtube_response
 
-        self.youtube_storage.add_request_and_response(youtube_request, youtube_response)
-
-        logger.info("storing query request and query response")
-        self.youtube_storage.add_query_response(query_engine, youtube_response)
+        logger.info("storing query request and response")
+        self.youtube_storage.add_query_request_and_response(query_request, query_response)
 
     def stringify_params(self,**params):
         """ create a dictionary and then a string given a set of params """
