@@ -1,6 +1,6 @@
 import logging
 import os
-from dynamodb_utils import DynamoDbUtils
+from dynamodb_utils import DynamoDbStringUtils
 from unittest.mock import Mock, patch
 
 import pytest
@@ -102,5 +102,5 @@ class TestQueryScanner:
 
     def test_load_json_file_not_found(self):
         """Test handling of non-existent config file"""
-        result = DynamoDbUtils.load_json_file("nonexistent.json")
+        result = DynamoDbJsonUtils.load_json_file("nonexistent.json")
         assert result is None

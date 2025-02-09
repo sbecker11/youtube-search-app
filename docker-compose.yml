@@ -18,4 +18,8 @@ services:
       - "4566:4566"
     environment:
       - SERVICES=dynamodb
+      - DATA_DIR=/tmp/localstack/data
       - DEBUG=1
+    volumes:
+      - "./localstack-data:/tmp/localstack"
+

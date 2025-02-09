@@ -29,12 +29,21 @@ MAX_QUERIES_PER_SCAN=100
 Docker configuration files are found at project root. Python source modules are found at project root under the `src` directory. Pytest modules are found in `/tests` OpenAPI documentation files are found in `/docs`.
 
 ### Useful aws-cli commands for querying the dynamodb tables:
+count the number of tables:
+```bash
+aws dynamodb list-tables --endpoint-url http://localhost:4566 --region us-west-2 | jq '.TableNames | length'
+```
+list all tables:
 >```bash
 aws dynamodb list-tables --endpoint-url http://localhost:4566 --region us-west-2
-
+```
+describe the Responses table
+```bash
 aws dynamodb describe-table --table-name Responses \
     --endpoint-url http://localhost:4566 --region us-west-2
-
+```
+describe the Snippets table
+```bash
 ws dynamodb describe-table --table-name Snippets \
     --endpoint-url http://localhost:4566 --region us-west-2
 ```
@@ -47,9 +56,8 @@ aws dynamodb scan --table-name Responses \
 --region us-west-2 | \
 jq -r '.Items[] | .queryDetails.M.q.S'
 ```
-### another query:
+### An fairly involved query:
 ```bash
-
  aws dynamodb query \
     --table-name Responses \
     --key-condition-expression "#etag = :etagval" \
@@ -60,7 +68,7 @@ jq -r '.Items[] | .queryDetails.M.q.S'
     --projection-expression "#etag, #queryDetails, #receivedAt" \
     --select SPECIFIC_ATTRIBUTES
 ```
-### Explanation:
+with a detailed Explanation:
 
 1. **`aws dynamodb query`** - This command initiates a query operation on DynamoDB.
 
@@ -126,6 +134,9 @@ aws dynamodb scan \
 The reverse(@)[:10] gets the last 10 items.
 
 boto3 queries
+
+count number of tables:
+???
 
 # Query with sorting (assuming timestamp exists)
 response = table.query(
@@ -322,3 +333,6 @@ docker exec -it $APP_CONTAINER_ID python run_scanner.py
 `http://localhost:5000/docs` Swagger UI to access the interactive Swagger UI documentation
 `http://localhost:5000/redoc` ReDoc to access the clean and readable ReDoc documentation
 
+Example YouTubeMetadata API requests
+list videos relating to "coding tutorials"
+https://www.googleapis.com/youtube/v3/search?part=snippet&q=coding+tutorials&key=YOUR_API_KEY

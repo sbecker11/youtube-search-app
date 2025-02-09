@@ -2,12 +2,12 @@ docker compose -f docker-compose-dynamodb-only.yml up --remove-orphans
 
 DYNAMO_URL="http://localhost:4566"
 function is_dynamo_running() {
-  DYNAMO_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${DYNAMO_URL})
+  DYNAMO_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${DYNAMO_URL} | tr -d '%')
   [ "$DYNAMO_STATUS" -eq "200" ]
 }
 
-if [ dynamo_is_running ]; then
+if is_dynamo_running; then
   echo "dynamo is listening at ${DYNAMO_URL}"
 else
-  echo ERROR dynamo is not listening"
+  echo "ERROR dynamo is not listening"
 fi

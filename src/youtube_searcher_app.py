@@ -1,6 +1,9 @@
+# pylint: disable=C0103 # invalid name format
+
 import json
 import logging
 from typing import List
+from time import sleep
 
 import requests
 import uvicorn
@@ -9,6 +12,7 @@ from openapi_spec_validator import validate_spec
 
 from query_scanner import QueryScanner
 from youtube_storage import YouTubeStorage
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -51,10 +55,8 @@ class YouTubeSearcherApp:
         self.storage = YouTubeStorage.get_singleton()
         logger.info("the YouTubeSearcherApp instance initialized with the YouTubeStorage instance")
 
-        self.run_scanner = False
-        if self.run_scanner:
-            self.scanner = QueryScanner.get_singleton()
-            logger.info("the YouTubeSearcherApp instance initialized with the QueryScanner instance")
+        self.scanner = QueryScanner.get_singleton()
+        logger.info("the YouTubeSearcherApp instance initialized with the QueryScanner instance")
 
         self.initialized = True  # Flag to show heavy initialization has been done
 
@@ -91,28 +93,54 @@ class YouTubeSearcherApp:
         self.fast_api_app.get("/responses/{query}", response_model=List[dict])(list_responses)
         self.fast_api_app.get("/snippets/{response_id}", response_model=List[dict])(list_snippets)
 
+    def verify_navigation_requests(self) -> bool:
+        """ Return True if all navigation requires used by FastAPI routes return values
+            within the given MAX_FAILED_ATTEMPTS with SLEEP_SECS pause between attempts,
+            Otherwise return false if still no results are found after MAX_FAILED_ATTEMPTS.
+        """
+        num_attempts = 0
+        MAX_FAILED_ATTEMPTS = 5
+        SLEEP_SECS = 5.0
+        while num_attempts <= MAX_FAILED_ATTEMPTS:
+            try:
+                queries = self.storage.find_all_querys()
+                assert len(queries) > 0
+                test_query = queries[0]
+                response_ids = self.storage.find_response_ids_by_query(test_query)
+                assert len(response_ids) >  0
+                test_response_id = response_ids[0]
+                snippets = self.storage.find_snippets_by_response_id(test_response_id)
+                assert len(snippets) > 0
+                logger.info("Storage functions verified successfully")
+                return True
+            except AssertionError as error:
+                logger.warning("Assertion error while verifying storage functions: %s", {error})
+            num_attempts += 1
+            sleep(SLEEP_SECS)
+        logger.error("returning False after %d failed attempts", MAX_FAILED_ATTEMPTS)
+        return False
 
-def save_openapi_docs(url, output_path='./docs/openapi.json'):
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
 
-    spec = response.json()
+    def save_openapi_docs(self, url, output_path='./docs/openapi.json'):
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
 
-    # Validate the OpenAPI spec
-    validate_spec(spec)
+        spec = response.json()
 
-    # Save the JSON to file
-    with open(output_path, 'w', encoding='utf-8') as file:
-        json.dump(spec, file, indent=2)
+        # Validate the OpenAPI spec
+        validate_spec(spec)
 
-    print(f"OpenAPI spec saved to {output_path}")
+        # Save the JSON to file
+        with open(output_path, 'w', encoding='utf-8') as file:
+            json.dump(spec, file, indent=2)
 
+        print(f"OpenAPI spec saved to {output_path}")
 
 
 if __name__ == "__main__":
     logger.info("Welcome to YouTubeSearcherApp")
-
-    APP_INSTANCE = YouTubeSearcherApp.get_singleton()
-    APP_INSTANCE.storage.find_all_querys()
-    # APP_INSTANCE.run_fast_api_app(host="localhost", port=8000)
-    # logger.info("open FastAPI at http:/localhost:8000")
+    searcher = YouTubeSearcherApp.get_singleton()
+    scanner = QueryScanner.get_singleton()
+    scanner.run_once(searcher.verify_navigation_requests)
+    searcher.run_fast_api_app(host="localhost", port=8000)
+    logger.info("open FastAPI at http:/localhost:8000")

@@ -7,7 +7,7 @@ import uuid
 import boto3
 from dotenv import load_dotenv
 from youtube_table import YouTubeTable
-from dynamodb_utils import DynamoDbUtils
+from dynamodb_utils import DynamoDbJsonUtils, DynamoDbDictUtils
 
 load_dotenv()
 
@@ -15,6 +15,8 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+class YouTubeStorageQueryException(Exception):
+    pass
 class YouTubeStorageException(Exception):
     pass
 class YouTubeStorage:
@@ -31,7 +33,7 @@ class YouTubeStorage:
             cls._instance = cls()
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, dynamodb_resource=None, dynamodb_client=None):
 
         if not hasattr(self, 'initialized'):
             self.initialized = False  # singleton logic to ensure that heavy initialization is done only once
@@ -45,25 +47,28 @@ class YouTubeStorage:
         if not self.dynamo_url or not self.responses_config_path or not self.snippets_config_path:
             raise ValueError("Environment variables for database configuration are not set.")
 
-        self.responses_table_config = DynamoDbUtils.load_json_file(self.responses_config_path)
+        self.responses_table_config = DynamoDbJsonUtils.load_json_file(self.responses_config_path)
         if not isinstance(self.responses_table_config, dict):
             raise RuntimeError("responses_table_config is not a dict!")
 
-        self.snippets_table_config = DynamoDbUtils.load_json_file(self.snippets_config_path)
+        self.snippets_table_config = DynamoDbJsonUtils.load_json_file(self.snippets_config_path)
         if not isinstance(self.snippets_table_config, dict):
             raise RuntimeError("snippets_table_config is not a dict!")
 
-        # creating dynamodb resource
-        self.dynamodb = boto3.resource('dynamodb', endpoint_url=self.dynamo_url)
+        self.dynamodb_resource = dynamodb_resource or boto3.resource('dynamodb', endpoint_url=self.dynamo_url)
+        self.dynamodb_client = dynamodb_client or boto3.client('dynamodb', endpoint_url=self.dynamo_url)
 
+        # create the tables or die
         try:
-            self.responses_table = YouTubeTable(self.responses_table_config)
-        except  boto3.exceptions.Boto3Error as error:
+            self.responses_table = YouTubeTable(self.responses_table_config, dynamodb_resource=self.dynamodb_resource)
+            self.tables[self.responses_table]
+        except boto3.exceptions.Boto3Error as error:
             logger.error("failed attempt to create YouTubeTable for Responses table error:%s", {error})
             raise error
         try:
-            self.snippets_table = YouTubeTable(self.snippets_table_config)
-        except  boto3.exceptions.Boto3Error as error:
+            self.snippets_table = YouTubeTable(self.snippets_table_config, dynamodb_resource=self.dynamodb_resource)
+            self.tables[self.responses_table]
+        except boto3.exceptions.Boto3Error as error:
             logger.error("failed attempt to create YouTubeTable for Snippets table error:%s", {error})
             raise error
 
@@ -71,22 +76,38 @@ class YouTubeStorage:
 
         self.initialized = True  # Flag to show heavy initialization has been done
 
+    def get_tables(self) -> List[YouTubeTable]:
+        return self.tables
+
+    def count_num_tables(self) -> int:
+        response = self.dynamodb_client.list_tables()
+        table_count = len(response['TableNames'])
+        return table_count
+
+    def count_table_items(self, table_name:str) -> int:
+        for table in self.get_tables():
+            if table.get_table_name() == table_name:
+                return table.count_items()
+        return 0
+
     def find_all_querys(self) -> List[str]:
         """Return a list of all distinct querys found among all responses sorted by request submitted at ascending."""
         logger.info("Querying all distinct querys.")
         querys = self.responses_table.query_table(
             "SELECT DISTINCT query FROM {responses_table} ORDER BY requestSubmittedAt ASC",
             {"responses_table": self.responses_table.table_name})
-        logger.info("Found querys: %d", len(querys))
+        logger.info("Found %d unique querys", len(querys))
         return querys
+
 
     def find_response_ids_by_query(self, query: str) -> List[str]:
         """Return a list of response_id that contained the given query in its request."""
         logger.info("Querying response IDs for query: %s", query)
+
         response_ids = self.responses_table.query_table(
             "SELECT response_id FROM {responses_table} WHERE query = :query",
             {"responses_table": self.responses_table.table_name, ":query": query})  # Use parameters to avoid SQL injection
-        logger.info("Found %d response IDs for query: %s", len(response_ids), query)
+        logger.info("Found %d unique response IDs for query: %s", len(response_ids), query)
         return response_ids
 
     def find_snippets_by_response_id(self, response_id: str) -> List[Dict[str, str]]:
@@ -99,6 +120,9 @@ class YouTubeStorage:
         return snippets
 
     def get_response_row(self, query_request: Dict[str, any], query_response: Dict[str, str]) -> Dict[str, any]:
+        """ This function takes a query_request object and its query_response object to create a flat dict of
+            attribute/value pairs. The attribute/value pairs of this dict are preprocessed and will then be
+            stored as a row of attributes in the "Reponses" dynamodb table. Each row having a unique response_id """
         response_id = str(uuid.uuid4())  # Generate a unique primary key
         response_row = {
             'responseId': response_id,  # PK
@@ -128,6 +152,10 @@ class YouTubeStorage:
         return pre_processed_response_row
 
     def get_snippet_rows(self, query_response: Dict[str, any], response_id: str) -> List[Dict[str, any]]:
+        """ This function takes parent reponse_id and a query_response and extracts its list of associated
+            items. Each item has a hierarchical snippet object. This object is transformed into a flattened
+            dict of preprocessed attribute/value pairs. Each flattened dict will be stored as a row
+            in the Snippets table in dynamodb."""
         pre_processed_snippet_rows = []
         for item in query_response.get('items', []):
             snippet = item.get('snippet', {})
@@ -139,8 +167,17 @@ class YouTubeStorage:
                 'title': snippet.get('title', ''),
                 'description': snippet.get('description', ''),
                 'channelTitle': snippet.get('channelTitle', ''),
-                'tags': snippet.get('tags', [])
+                'tags': snippet.get('tags', []),
+                'liveBroadcastContent': snippet.get('liveBroadcastContent', ''),
+                'publishTime': snippet.get('publishTime', '')
             }
+            thumbnails = snippet.get('thumbnails', {})
+            flattened_thumbnails = DynamoDbDictUtils.flatten_dict(
+                current_dict=thumbnails,
+                parent_key='thumbnails')
+            for key,val in flattened_thumbnails.items():
+                snippet_row[key] = val
+
             print(f"snippet_row:\n{json.dumps(snippet_row,indent=2)}")
             pre_processed_snippet_row = self.snippets_table.get_preprocessed_item(snippet_row)
             print(f"pre_processed_snippet_row:\n{json.dumps(pre_processed_snippet_row,indent=2)}")
@@ -150,7 +187,7 @@ class YouTubeStorage:
         return pre_processed_snippet_rows
 
     def add_query_request_and_response(self, query_request: Dict[str, any], query_response: Dict[str, any]):
-        """Add a request and its response to the database."""
+        """ Adds a query request and its query response object to the database. """
         logger.info("computing response_row from query_request and query_response.")
         response_row = self.get_response_row(query_request, query_response)
 

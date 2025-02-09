@@ -8,7 +8,7 @@ from typing import Dict
 
 import croniter
 from dotenv import load_dotenv
-from dynamodb_utils import DynamoDbUtils
+from dynamodb_utils import DynamoDbJsonUtils
 from query_engine import QueryEngine, QueryEngineException
 
 # Load environment variables from .env file
@@ -48,9 +48,14 @@ class QueryScanner:
         elif self.initialized:
             return
 
-        self.config = DynamoDbUtils.load_json_file(os.getenv('QUERY_SCANNER_CONFIG_PATH', 'undefined'))
+        self.config = DynamoDbJsonUtils.load_json_file(os.getenv('QUERY_SCANNER_CONFIG_PATH', 'undefined'))
         if not isinstance(self.config, dict):
             raise RuntimeError("config file not loaded")
+        if not self.get_queries():
+            raise RuntimeError("queries not found in config")
+        if not self.get_cron_string():
+            raise RuntimeError("cron_string not found in config file")
+
         logger.info("the QueryScanner instance config loaded")
 
         self.run_status = "Ready"
@@ -59,13 +64,10 @@ class QueryScanner:
         self.query_engine = QueryEngine.get_singleton()
         logger.info("the QueryScanner instance initialized with the QueryEngine instance")
 
-        self.start_on_load = False
-        if self.start_on_load:
-            logger.info("the QueryScanner instance has started")
-            self.start()
         self.initialized = True  # Flag to show heavy initialization has been done
 
     def validate_config(self, config:Dict):
+        """ validate the contents of the json config file """
         if not config.get("queries"):
             raise QueryScannerException("empty list of queries")
         if len(config["queries"]) > max_queries_per_scan:
@@ -75,6 +77,9 @@ class QueryScanner:
             raise QueryScannerException("cron-string does not match the required pattern")
 
     def run_queries(self, queries):
+        """ call the query_engine to search on the give list queries
+            that are not necessarily in the config.
+        """
         if len(queries) > max_queries_per_scan:
             raise QueryScannerException("num queries: %d exceeds configured \
                 max_queries_per_scan:%d" % (len(queries), max_queries_per_scan))
@@ -95,15 +100,27 @@ class QueryScanner:
         logger.info("run_status set to %s", self.run_status)
 
     def get_cron_string(self):
-        return self.config['cron_string']
+        """ return the cron_string from the config """
+        return self.config['cron-string']
 
     def get_queries(self):
+        """ return the queries list from the config """
         return self.config['queries']
 
-    def run_once(self):
-        """ Execute the queries one time
+    def run_once(self, listener=None):
+        """ Execute run the queries search one time
+            and invoke the given listener if defined
         """
-        self.run_queries(self.get_queries())
+        try:
+            self.run_queries(self.get_queries())
+            if listener:
+                listener()
+        except QueryEngineException as error:
+            if "API key expired" in str(error):
+                logger.info("API key expired")
+            else:
+                logger.info("scanner.run_once failed with error:%s", {error})
+            raise error
 
     def start(self):
         """ Start running the schedule that calls run_queries
@@ -122,7 +139,10 @@ class QueryScanner:
             if utcnow >= next_execution:
                 logger.info("*" * 80)
                 logger.info("execution starting at %s", utcnow.isoformat())
-                self.run_queries(self.get_queries())
+                try:
+                    self.run_queries(self.get_queries())
+                except QueryEngineException as error:
+                    logger.info("scanner.run_queries failed with error:%s", {error})
                 next_execution = cron.get_next(datetime)
                 logger.info("next execution scheduled for %s", next_execution.isoformat())
             time.sleep(10)  # Sleep to prevent high CPU usage
@@ -134,7 +154,7 @@ def main():
     for query in scanner.get_queries():
         logger.info(query)
 
-    # scanner.run_once()
+    scanner.run_once(None)
 
 if __name__ == '__main__':
     main()
