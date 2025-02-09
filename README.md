@@ -319,7 +319,7 @@ print(metadata['statistics']['likeCount'])
 
 ### Run scanner command
 ```
-APP_CONTAINER_ID=$(docker ps | grep "youtube-search-api-app" | awk '{print $1}')
+APP_CONTAINER_ID=$(docker ps | grep "youtube-search-app-app" | awk '{print $1}')
 echo "$APP_CONTAINER_ID"
 docker exec -it $APP_CONTAINER_ID python run_scanner.py
 ```
