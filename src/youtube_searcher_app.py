@@ -1,5 +1,3 @@
-# pylint: disable=C0103 # invalid name format
-
 import json
 import logging
 from typing import List
@@ -12,7 +10,9 @@ from openapi_spec_validator import validate_spec
 
 from query_scanner import QueryScanner
 from youtube_storage import YouTubeStorage
-
+from dynamodb_utils.json_utils import DynamoDbJsonUtils
+# global app run mode
+APP_RUN_MODES = DynamoDbJsonUtils.load_json_file("APP_RUN_MODES.json")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -50,13 +50,17 @@ class YouTubeSearcherApp:
         # ...heavy initialization...
         self.fast_api_app = FastAPI()
         self.setup_routes()
-        logger.info("the YouTubeSearcherApp instance has FastAPI app with public routes loaded")
+        logger.info("the YouTubeSearcherApp instance initialized with FastAPI app with public routes loaded")
 
         self.storage = YouTubeStorage.get_singleton()
         logger.info("the YouTubeSearcherApp instance initialized with the YouTubeStorage instance")
 
-        self.scanner = QueryScanner.get_singleton()
-        logger.info("the YouTubeSearcherApp instance initialized with the QueryScanner instance")
+        if APP_RUN_MODES['USE_SCANNER'] != 'yes':
+            logger.warning("APP_RUN_MODES['USE_SCANNER'] is '%s'", APP_RUN_MODES['USE_SCANNER'])
+            logger.warning("the YouTubeSearcherApp instance HAS NOT BEEN INITIALIZED with the QueryScanner instance")
+        else:
+            self.scanner = QueryScanner.get_singleton()
+            logger.info("the YouTubeSearcherApp instance initialized with the QueryScanner instance")
 
         self.initialized = True  # Flag to show heavy initialization has been done
 
@@ -136,11 +140,15 @@ class YouTubeSearcherApp:
 
         print(f"OpenAPI spec saved to {output_path}")
 
+    @staticmethod
+    def main():
+        logger.info("Welcome to YouTubeSearcherApp")
+        searcher = YouTubeSearcherApp.get_singleton()
+
+        # test navigation requests against pre-loaded database tabels
+        searcher.verify_navigation_requests()
+        searcher.run_fast_api_app(host="localhost", port=8000)
+        logger.info("open FastAPI at http:/localhost:8000")
 
 if __name__ == "__main__":
-    logger.info("Welcome to YouTubeSearcherApp")
-    searcher = YouTubeSearcherApp.get_singleton()
-    scanner = QueryScanner.get_singleton()
-    scanner.run_once(searcher.verify_navigation_requests)
-    searcher.run_fast_api_app(host="localhost", port=8000)
-    logger.info("open FastAPI at http:/localhost:8000")
+    YouTubeSearcherApp.main()

@@ -1,4 +1,61 @@
-# Overview of the YouTube Search API project
+# Overview of the YouTube Search App project
+
+
+```tree
+.
+├── Dockerfile
+├── README.md
+├── data
+│   ├── query_response_head.json
+│   ├── query_response_item.json
+│   ├── query_scanner_config.json
+│   ├── responses_table_config.json
+│   └── snippets_table_config.json
+├── data_processor
+│   ├── Dockerfile
+│   └── app.py
+├── dist
+│   └── youtube-search-api.egg-info
+│       ├── PKG-INFO
+│       ├── SOURCES.txt
+│       ├── dependency_links.txt
+│       └── top_level.txt
+├── docker-compose-dynamodb-only.yml
+├── docker-compose.yml
+├── jest.config.js
+├── localstack.pid
+├── requirements.txt
+├── responses-clipped.json
+├── responses.scan
+├── scripts
+│   ├── count-tables
+│   ├── count_tables.py
+│   ├── generate-docs
+│   ├── generate-docs-with-redoc
+│   ├── run-app
+│   ├── run-docker-compose.scpt
+│   ├── run-dynamo
+│   └── run-pytest
+├── src
+│   ├── Dockerfile
+│   ├── __init__.py
+│   ├── dynamodb_utils.py
+│   ├── query_engine.py
+│   ├── query_scanner.py
+│   ├── youtube_searcher_app.py
+│   ├── youtube_storage.py
+│   └── youtube_table.py
+└── tests
+    ├── __init__.py
+    ├── conftest.py
+    ├── test_conftest.py
+    ├── test_query_engine.py
+    ├── test_query_scanner.py
+    ├── test_youtube_storage.py
+    ├── test_youtube_storage_api.py
+    └── test_youtube_table.py
+```
+
 
 This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. `Dockerfile` and `docker-compose.yaml` reside at project-root, and are used to deploy assets to DockerDesktop.
 
@@ -315,7 +372,10 @@ print(metadata['statistics']['likeCount'])
 
 
 ### Docker build command
-`docker compose up --build`
+```bash
+cd /Users/sbecker11/workspace-youtubeyoutube-search-app
+docker compose -f docker-compose-dynamodb-only-no-volumes.yml up 
+```
 
 ### Run scanner command
 ```

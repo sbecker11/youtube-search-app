@@ -1,6 +1,6 @@
 import logging
 import os
-from dynamodb_utils import DynamoDbStringUtils
+from dynamodb_utils.string_utils import DynamoDbStringUtils
 from unittest.mock import Mock, patch
 
 import pytest

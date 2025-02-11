@@ -1,8 +1,4 @@
-#!/bin/zsh
-cat 
-echo "PATH:$PATH"
-which venv-activate
-venv-activate
+#!/bin/bash
 
 aws dynamodb list-tables --endpoint-url http://localhost:4566 --region us-west-2 | jq '.TableNames | length'
 

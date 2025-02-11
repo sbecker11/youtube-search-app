@@ -29,22 +29,6 @@ if [ "$?" -ne "0" ]; then
   exit 1
 fi
 
-# to start dynamodb in a new terminal in detached mode
-echo "starting dynamodb at http://localhost:4566"
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  # MacOS
-  open -a Terminal "docker-compose -f docker-compose-dynamodb-only.yml up --remove-orphans"
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  # Linux
-  gnome-terminal -- bash -c "docker-compose -f docker-compose-dynamodb-only.yml up --remove-orphans; exec bash"
-elif [[ "$OSTYPE" == "msys" ]]; then
-  # Windows
-  start cmd.exe /k "docker-compose -f docker-compose-dynamodb-only.yml up --remove-orphans"
-else
-  echo "Unsupported OS type: $OSTYPE"
-  exit 1
-fi
-
 # verify dynamodb is running
 DYNAMODB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4566)
 if [ "$DYNAMODB_STATUS" -ne 200 ]; then

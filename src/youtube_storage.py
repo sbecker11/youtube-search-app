@@ -1,5 +1,3 @@
-# pylint: disable=C0103 # Invalid name
-
 import os
 import json
 import logging
@@ -9,7 +7,8 @@ import uuid
 import boto3
 from dotenv import load_dotenv
 from youtube_table import YouTubeTable, DbTable
-from dynamodb_utils import DynamoDbJsonUtils, DynamoDbDictUtils
+from dynamodb_utils.json_utils import DynamoDbJsonUtils
+from dynamodb_utils.dict_utils import DynamoDbDictUtils
 
 load_dotenv()
 
@@ -57,58 +56,38 @@ class YouTubeStorage:
         if not isinstance(self.snippets_table_config, dict):
             raise RuntimeError("snippets_table_config is not a dict!")
 
+        # for higher-level dynamodb functions
         self.dynamodb_resource = dynamodb_resource or boto3.resource('dynamodb', endpoint_url=self.dynamo_url)
+
+        # for lower-level dynamodb functions
         self.dynamodb_client = dynamodb_client or boto3.client('dynamodb', endpoint_url=self.dynamo_url)
 
-        # create the tables or die
+        # create the YouTubeTables or die
         self.tables = []
         try:
-            self.responses_table = YouTubeTable(self.responses_table_config, dynamodb_resource=self.dynamodb_resource)
+            self.responses_table = YouTubeTable(self.responses_table_config)
             self.tables.append(self.responses_table)
         except boto3.exceptions.Boto3Error as error:
             logger.error("failed attempt to create YouTubeTable for Responses table error:%s", {error})
             raise error
         try:
-            self.snippets_table = YouTubeTable(self.snippets_table_config, dynamodb_resource=self.dynamodb_resource)
+            self.snippets_table = YouTubeTable(self.snippets_table_config)
             self.tables.append(self.snippets_table)
         except boto3.exceptions.Boto3Error as error:
             logger.error("failed attempt to create YouTubeTable for Snippets table error:%s", {error})
             raise error
-
-        logger.info("the YouTubeStorage instance is now initialized with dynamoDb tables")
+        logger.info("the YouTubeStorage instance is now initialized with %d YouTubeTables", len(self.tables))
 
         self.initialized = True  # Flag to show heavy initialization has been done
 
     def get_tables(self) -> List[YouTubeTable]:
         return self.tables
 
+
     def count_num_dbTables(self) -> int:
         response = self.dynamodb_client.list_tables()
         table_count = len(response['TableNames'])
         return table_count
-
-    def find_dbTable_by_name(self, table_name: str) -> DbTable:
-        """
-        Find a DynamoDb table by its name, or return None
-
-        :param table_name: The name of the table to check for existence.
-        :return: The table if it exists, None otherwise.
-        """
-        found_dbTable = None
-        try:
-            # Attempt to describe the table. If this succeeds, the table exists.
-            found_dbTable = self.dynamodb_resource.Table(table_name)
-            # Check if we can describe the table to confirm it's accessible
-            self.dynamodb_client.describe_table(TableName=table_name)
-        except self.dynamodb_client.exceptions.ResourceNotFoundException:
-            # If the table doesn't exist, we'll get this exception.
-            found_dbTable = None
-        except boto3.exceptions.Boto3Error as error:
-            # Catch other exceptions and log them for debugging.
-            print(f"An error occurred while checking for table {table_name}: {error}")
-            found_dbTable = None
-
-        return found_dbTable
 
     def count_table_items(self, table_name:str) -> int:
         for table in self.get_tables():
@@ -119,7 +98,7 @@ class YouTubeStorage:
     def find_all_querys(self) -> List[str]:
         """Return a list of all distinct querys found among all responses sorted by request submitted at ascending."""
         logger.info("Querying all distinct querys.")
-        querys = self.responses_table.query_table(
+        querys = self.responses_table.query_self_table(
             "SELECT DISTINCT query FROM {responses_table} ORDER BY requestSubmittedAt ASC",
             {"responses_table": self.responses_table.table_name})
         logger.info("Found %d unique querys", len(querys))
@@ -130,7 +109,7 @@ class YouTubeStorage:
         """Return a list of response_id that contained the given query in its request."""
         logger.info("Querying response IDs for query: %s", query)
 
-        response_ids = self.responses_table.query_table(
+        response_ids = self.responses_table.query_self_table(
             "SELECT response_id FROM {responses_table} WHERE query = :query",
             {"responses_table": self.responses_table.table_name, ":query": query})  # Use parameters to avoid SQL injection
         logger.info("Found %d unique response IDs for query: %s", len(response_ids), query)
@@ -139,7 +118,7 @@ class YouTubeStorage:
     def find_snippets_by_response_id(self, response_id: str) -> List[Dict[str, str]]:
         """Return a list of all snippets of a given response with the given response_id."""
         logger.info("Querying snippets for response ID: %s", response_id)
-        snippets = self.snippets_table.query_table(
+        snippets = self.snippets_table.query_self_table(
             "SELECT * FROM {snippets_table} WHERE responseId = :response_id",
             {"snippets_table": self.snippets_table.table_name, ":response_id": response_id})  # Use parameters here too
         logger.info("Found %d snippets for response_id: %s", len(snippets), response_id)

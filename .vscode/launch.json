@@ -1,11 +1,34 @@
 {
     "version": "0.2.0",
     "configurations": [
+
         {
-            "name": "Python: Run YouTube Channel Scanner",
+            "name": "Python: Dump Snippets table",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/youtube_channel_scanner.py",
+            "program": "${workspaceFolder}/scripts/dump_dynamodb.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Load dump.json table",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/load_dynamodb.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: run_app",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/run_app.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: count_tables",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/count_tables.py",
             "console": "integratedTerminal"
         }
     ]

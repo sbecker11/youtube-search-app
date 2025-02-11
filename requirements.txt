@@ -1,18 +1,23 @@
 pytest>=3.3
 pytest-docker-compose
-PyYAML<6,>=3.10
 requests
 flask
 pandas
 numpy
 wheel
-
+boto3
+moto==5.0.28
+schedule
+croniter
+openapi_spec_validator
 google-api-core==2.24.1
 google-api-python-client==2.160.0
 google-auth==2.38.0
 google-auth-httplib2==0.2.0
 googleapis-common-protos==1.66.0
 
-moto==5.0.28
-schedule
-croniter
+# for pyaml-5.4.1 installation problems
+# cd special-installations
+# and source install-pyyaml-5.4.1
+
+

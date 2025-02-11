@@ -1,0 +1,4 @@
+# source this file from this folder
+echo "Cython < 3.0" > constraint.txt
+PIP_CONSTRAINT=./constraint.txt python3.11 -m pip install PyYAML==5.4.1
+rm constraint.txt

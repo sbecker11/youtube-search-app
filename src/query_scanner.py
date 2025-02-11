@@ -1,4 +1,4 @@
-# pylint: disable=W1203 # Use lazy % formatting in logging functions
+# pylint: disable=C0209 # Use lazy % formatting in logging functions
 
 import logging
 import os
@@ -8,8 +8,11 @@ from typing import Dict
 
 import croniter
 from dotenv import load_dotenv
-from dynamodb_utils import DynamoDbJsonUtils
 from query_engine import QueryEngine, QueryEngineException
+
+from dynamodb_utils.json_utils import DynamoDbJsonUtils
+# global app run mode
+APP_RUN_MODES = DynamoDbJsonUtils.load_json_file("APP_RUN_MODES.json")
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,6 +22,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 max_queries_per_scan = int(os.getenv("MAX_QUERIES_PER_SCAN", "10"))
+
+# set this to true to skip query_engine setup during ininitialization
 
 class QueryScannerException(Exception):
     pass
@@ -56,13 +61,18 @@ class QueryScanner:
         if not self.get_cron_string():
             raise RuntimeError("cron_string not found in config file")
 
-        logger.info("the QueryScanner instance config loaded")
+        logger.info("the QueryScanner instance initialized with validated config")
+
+        if APP_RUN_MODES["USE_SCANNER"] != "yes" or APP_RUN_MODES["SEND_YOUTUBE_QUERIES"] != "yes":
+            logger.warning("APP_RUN_MODES['USE_SCANNER'] is '%s'", APP_RUN_MODES['USE_SCANNER'])
+            logger.warning("APP_RUN_MODES['SEND_YOUTUBE_QUERIES'] is '%s'", APP_RUN_MODES['SEND_YOUTUBE_QUERIES'])
+            logger.warning("the QueryScanner instance HAS NOT BEEN INITIALIZED with the QueryEngine instance")
+        else:
+            self.query_engine = QueryEngine.get_singleton()
+            logger.info("the QueryScanner instance initialized with the QueryEngine instance")
 
         self.run_status = "Ready"
-        logger.info("the QueryScanner instance run_status:%s", self.run_status)
-
-        self.query_engine = QueryEngine.get_singleton()
-        logger.info("the QueryScanner instance initialized with the QueryEngine instance")
+        logger.info("the QueryScanner instance initialized with run_status: %s", self.run_status)
 
         self.initialized = True  # Flag to show heavy initialization has been done
 
@@ -82,12 +92,12 @@ class QueryScanner:
         """
         if len(queries) > max_queries_per_scan:
             raise QueryScannerException("num queries: %d exceeds configured \
-                max_queries_per_scan:%d" % (len(queries), max_queries_per_scan))
+                max_queries_per_scan: %d" % (len(queries), max_queries_per_scan))
         for query in queries:
             try:
-                logger.info(f"Starting query: {query}")
+                logger.info("Starting query %s:", {query})
                 self.query_engine.search(query)
-                logger.info(f"Finished query: {query}")
+                logger.info("Finished query:%s", {query})
             except QueryEngineException as error:
                 logger.error("Error running query: %s %s", query, {error})
                 raise error

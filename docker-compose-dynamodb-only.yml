@@ -1,9 +1,27 @@
+version: '3.7'
 services:
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:latest
     ports:
-      - "4566:4566"
+      - "4566:4566"  # localstack Edge Proxy
+      - "${PORT_WEB_UI-8080}:8080"  # LocalStack Dashboard
     environment:
       - SERVICES=dynamodb
       - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/localstack:/tmp/localstack
+      - /Users/sbecker11/dynamodb_data:/dynamodb_data
+    user: "sbecker11:staff"  # This assumes 'sbecker11' is in the 'staff' group on your host system
 
+
+# put it up
+# docker compose -f docker-compose-dynamodb-only.yml up
+
+# check its status
+# docker compose -f docker-compose-dynamo-only.yml ps
+
+# take it down
+# docker compose -f docker-compose-dynamo-only.yml dn

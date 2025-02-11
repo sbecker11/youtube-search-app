@@ -1,0 +1,5 @@
+#!/bin/bash
+
+python src/query_scanner.py
+
+aws dynamodb list-tables --endpoint-url http://localhost:4566 --region us-west-2 | jq '.TableNames | length'
