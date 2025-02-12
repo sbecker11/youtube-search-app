@@ -101,6 +101,9 @@ class YouTubeStorage:
         logger.info("Querying all distinct querys.")
         responses_table = self.responses_table
         all_responseItems = responses_table.scan_table()
+        if not all_responseItems:
+            logger.warning("theresponses_table is empty")
+            return []
 
         # extra validation
         responseItem0 = all_responseItems[0]
@@ -120,6 +123,7 @@ class YouTubeStorage:
         distinct_queries = list(distinct_values[query_dbAttr])
         logger.info("Found %d distinct querys", len(distinct_queries))
         logger.info(f"distinct querys {distinct_queries}")
+
         return distinct_queries
 
 
@@ -132,7 +136,13 @@ class YouTubeStorage:
         distinct_values_by_dbAttr = self.find_distinct_dbItem_values_over_dbAttrs(response_dbItems, filter_by_dbAttrs)
         distinct_query_values = distinct_values_by_dbAttr[query_dbAttr]
         logger.info("Found distinct request queries: {distinct_query_values}")
-        return distinct_query_values
+        fast_api_response = {}
+        pos = 0
+        for distinct_query_value in distinct_query_values:
+            fast_api_response[pos] = distinct_query_value
+            post += 1
+        logger.info(f"fast_api_response: {json.dumps(fast_api_response,inden=4)}" )
+        return fast_api_response
 
     # this is used only by find_distinct_request_queries
     def find_distinct_dbItem_values_over_dbAttrs(self, dbItems:List[DbItem], filter_by_dbAttrs:List[DbAttr]) -> Dict[DbAttr,Any]:

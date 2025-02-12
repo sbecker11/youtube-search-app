@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List
+from typing import List, Dict
 from time import sleep
 
 import requests
@@ -82,7 +82,9 @@ class YouTubeSearcherApp:
 
         def list_querys():
             """ scan all response items to create a list of all unique query values """
-            return self.storage.find_all_distinct_querys()
+            queries = self.storage.find_all_distinct_querys()
+            # Return a single dictionary with a key mapping to the list of queries
+            return {"queries": queries}
 
         def list_responses(query: str):
             """ return a list of responses from requests with query """
@@ -92,7 +94,7 @@ class YouTubeSearcherApp:
             """ return the list of snipped associated with the given response_id """
             return self.storage.find_snippets_by_response_id(response_id)
 
-        self.fast_api_app.get("/queries", response_model=List[dict])(list_querys)
+        self.fast_api_app.get("/queries", response_model=Dict[str, List[str]])(list_querys)
         self.fast_api_app.get("/responses/{query}", response_model=List[dict])(list_responses)
         self.fast_api_app.get("/snippets/{response_id}", response_model=List[dict])(list_snippets)
 
