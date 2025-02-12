@@ -1,9 +1,5 @@
 #!/bin/bash
 
-echo
-echo "list tables using aws:"
-aws dynamodb list-tables --endpoint-url http://localhost:4566 --region us-west-2 | jq '.TableNames | length'
-
 (
     echo "sourcing scripts/activate
     source scripts/activate

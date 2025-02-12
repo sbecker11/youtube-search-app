@@ -30,6 +30,13 @@
             "request": "launch",
             "program": "${workspaceFolder}/scripts/count_tables.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: filter_tables",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/filter_tables.py",
+            "console": "integratedTerminal"
         }
     ]
 }

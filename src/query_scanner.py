@@ -63,13 +63,13 @@ class QueryScanner:
 
         logger.info("the QueryScanner instance initialized with validated config")
 
-        if APP_RUN_MODES["USE_SCANNER"] != "yes" or APP_RUN_MODES["SEND_YOUTUBE_QUERIES"] != "yes":
+        if APP_RUN_MODES["USE_SCANNER"] != "no" and APP_RUN_MODES["SEND_YOUTUBE_QUERIES"] != "no":
+            self.query_engine = QueryEngine.get_singleton()
+            logger.info("the QueryScanner instance initialized with the QueryEngine instance")
+        else:
             logger.warning("APP_RUN_MODES['USE_SCANNER'] is '%s'", APP_RUN_MODES['USE_SCANNER'])
             logger.warning("APP_RUN_MODES['SEND_YOUTUBE_QUERIES'] is '%s'", APP_RUN_MODES['SEND_YOUTUBE_QUERIES'])
             logger.warning("the QueryScanner instance HAS NOT BEEN INITIALIZED with the QueryEngine instance")
-        else:
-            self.query_engine = QueryEngine.get_singleton()
-            logger.info("the QueryScanner instance initialized with the QueryEngine instance")
 
         self.run_status = "Ready"
         logger.info("the QueryScanner instance initialized with run_status: %s", self.run_status)

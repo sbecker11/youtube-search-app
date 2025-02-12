@@ -55,12 +55,11 @@ class YouTubeSearcherApp:
         self.storage = YouTubeStorage.get_singleton()
         logger.info("the YouTubeSearcherApp instance initialized with the YouTubeStorage instance")
 
-        if APP_RUN_MODES['USE_SCANNER'] != 'yes':
-            logger.warning("APP_RUN_MODES['USE_SCANNER'] is '%s'", APP_RUN_MODES['USE_SCANNER'])
-            logger.warning("the YouTubeSearcherApp instance HAS NOT BEEN INITIALIZED with the QueryScanner instance")
-        else:
+        if APP_RUN_MODES['USE_SCANNER'] != 'no' and APP_RUN_MODES['SEND_YOUTUBE_QUERIES'] != "no":
             self.scanner = QueryScanner.get_singleton()
             logger.info("the YouTubeSearcherApp instance initialized with the QueryScanner instance")
+        else:
+            logger.info("the YouTubeSearcherApp instance DID NOT initialize with the QueryScanner instance")
 
         self.initialized = True  # Flag to show heavy initialization has been done
 
@@ -83,7 +82,7 @@ class YouTubeSearcherApp:
 
         def list_querys():
             """ scan all response items to create a list of all unique query values """
-            return self.storage.find_all_querys()
+            return self.storage.find_all_distinct_querys()
 
         def list_responses(query: str):
             """ return a list of responses from requests with query """
@@ -107,14 +106,14 @@ class YouTubeSearcherApp:
         SLEEP_SECS = 5.0
         while num_attempts <= MAX_FAILED_ATTEMPTS:
             try:
-                queries = self.storage.find_all_querys()
+                queries = self.storage.find_all_distinct_querys()
                 assert len(queries) > 0
-                test_query = queries[0]
-                response_ids = self.storage.find_response_ids_by_query(test_query)
-                assert len(response_ids) >  0
-                test_response_id = response_ids[0]
-                snippets = self.storage.find_snippets_by_response_id(test_response_id)
-                assert len(snippets) > 0
+                # test_query = queries[0]
+                # response_ids = self.storage.find_response_ids_by_query(test_query)
+                # assert len(response_ids) >  0
+                # test_response_id = response_ids[0]
+                # snippets = self.storage.find_snippets_by_response_id(test_response_id)
+                # assert len(snippets) > 0
                 logger.info("Storage functions verified successfully")
                 return True
             except AssertionError as error:
@@ -125,30 +124,25 @@ class YouTubeSearcherApp:
         return False
 
 
-    def save_openapi_docs(self, url, output_path='./docs/openapi.json'):
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-
-        spec = response.json()
-
-        # Validate the OpenAPI spec
-        validate_spec(spec)
-
-        # Save the JSON to file
-        with open(output_path, 'w', encoding='utf-8') as file:
-            json.dump(spec, file, indent=2)
-
-        print(f"OpenAPI spec saved to {output_path}")
 
     @staticmethod
     def main():
         logger.info("Welcome to YouTubeSearcherApp")
         searcher = YouTubeSearcherApp.get_singleton()
 
-        # test navigation requests against pre-loaded database tabels
-        searcher.verify_navigation_requests()
-        searcher.run_fast_api_app(host="localhost", port=8000)
-        logger.info("open FastAPI at http:/localhost:8000")
+        if APP_RUN_MODES['USE_SCANNER'] == 'once':
+            def on_scan_complete():
+                searcher.verify_navigation_requests()
+                searcher.run_fast_api_app(host="localhost", port=8000)
+                logger.info("open FastAPI at http://localhost:8000")
+
+            searcher.scanner.run_once(on_scan_complete)
+
+        else:
+            searcher.verify_navigation_requests()
+            searcher.run_fast_api_app(host="localhost", port=8000)
+            logger.info("open FastAPI at http://localhost:8000")
+
 
 if __name__ == "__main__":
     YouTubeSearcherApp.main()

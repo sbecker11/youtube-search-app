@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from youtube_table import YouTubeTable, DbTable
 from dynamodb_utils.json_utils import DynamoDbJsonUtils
 from dynamodb_utils.dict_utils import DynamoDbDictUtils
+from dynamodb_utils.dbtypes import *
 
 load_dotenv()
 
@@ -95,34 +96,83 @@ class YouTubeStorage:
                 return table.count_items()
         return 0
 
-    def find_all_querys(self) -> List[str]:
-        """Return a list of all distinct querys found among all responses sorted by request submitted at ascending."""
+    def find_all_distinct_querys(self) -> List[str]:
+        """Return a list of all distinct querys found among all responses sorted alphabetically."""
         logger.info("Querying all distinct querys.")
-        querys = self.responses_table.query_self_table(
-            "SELECT DISTINCT query FROM {responses_table} ORDER BY requestSubmittedAt ASC",
-            {"responses_table": self.responses_table.table_name})
-        logger.info("Found %d unique querys", len(querys))
-        return querys
+        responses_table = self.responses_table
+        all_responseItems = responses_table.scan_table()
 
+        # extra validation
+        responseItem0 = all_responseItems[0]
+        responseItem0_text = DynamoDbJsonUtils.json_dumps(responseItem0)
+        recreatedResponseItem0 = json.loads(responseItem0_text)
+        print(responseItem0_text)
+        query_dbAttr = "queryDetails.q"
+        select_by_dbAttrs = [query_dbAttr]
+        if query_dbAttr not in recreatedResponseItem0:
+            raise RuntimeError(f"select_by_dbAttrs NOT found in {json.dumps(recreatedResponseItem0)}")
+
+        filtered_dbItems = responses_table.select_dbItems_by_dbAttrs(all_responseItems, select_by_dbAttrs)
+        distinct_values = {}
+        for dbAttr in select_by_dbAttrs:
+            distinct_values[dbAttr] = set([dbItem[dbAttr] for dbItem in filtered_dbItems if dbAttr in dbItem])
+
+        distinct_queries = list(distinct_values[query_dbAttr])
+        logger.info("Found %d distinct querys", len(distinct_queries))
+        logger.info(f"distinct querys {distinct_queries}")
+        return distinct_queries
+
+
+    def find_distinct_request_queries(self):
+        logger.info("Finding all distinct request queries.")
+        responses_table = self.responses_table
+        response_dbItems = responses_table.scan_table()
+        query_dbAttr = "queryDetails.q"
+        filter_by_dbAttrs = [query_dbAttr]
+        distinct_values_by_dbAttr = self.find_distinct_dbItem_values_over_dbAttrs(response_dbItems, filter_by_dbAttrs)
+        distinct_query_values = distinct_values_by_dbAttr[query_dbAttr]
+        logger.info("Found distinct request queries: {distinct_query_values}")
+        return distinct_query_values
+
+    # this is used only by find_distinct_request_queries
+    def find_distinct_dbItem_values_over_dbAttrs(self, dbItems:List[DbItem], filter_by_dbAttrs:List[DbAttr]) -> Dict[DbAttr,Any]:
+        """Return a list of all distinct values of filter_by_dbAttrs found over the given dbItems."""
+        target_dbItem = dbItems[0]
+        target_dbItem_text = DynamoDbJsonUtils.json_dumps(target_dbItem)
+        target_dbItem_recon_dict = json.loads(target_dbItem_text)
+        for filter_by_dbAttr in filter_by_dbAttrs:
+            if filter_by_dbAttr not in target_dbItem_recon_dict:
+                raise RuntimeError(f"find_distinct_dbItem_values_over_dbAttrs dbAtt:{filter_by_dbAttr} NOT found in {json.dumps(target_dbItem_recon_dict)}")
+        filtered_dbItems = responses_table.select_dbItems_by_dbAttrs(all_responseItems, select_by_dbAttrs)
+        distinct_values_by_dbAttr = {}
+        for dbAttr in select_by_dbAttrs:
+            distinct_values_by_dbAttr[dbAttr] = set([ dbItem[dbAttr] for dbItem in filtered_dbItems ])
+        return distinct_values_by_dbAttr
 
     def find_response_ids_by_query(self, query: str) -> List[str]:
-        """Return a list of response_id that contained the given query in its request."""
-        logger.info("Querying response IDs for query: %s", query)
+        logger.warning("NOT YET IMPLEMENTED")
+        return []
 
-        response_ids = self.responses_table.query_self_table(
-            "SELECT response_id FROM {responses_table} WHERE query = :query",
-            {"responses_table": self.responses_table.table_name, ":query": query})  # Use parameters to avoid SQL injection
-        logger.info("Found %d unique response IDs for query: %s", len(response_ids), query)
-        return response_ids
+        # """Return a list of response_id that contained the given query in its request."""
+        # logger.info("Querying response IDs for query: %s", query)
+
+        # response_ids = self.responses_table.query_table(
+        #     "SELECT response_id FROM {responses_table} WHERE query = :query",
+        #     {"responses_table": self.responses_table.table_name, ":query": query})  # Use parameters to avoid SQL injection
+        # logger.info("Found %d unique response IDs for query: %s", len(response_ids), query)
+        # return response_ids
 
     def find_snippets_by_response_id(self, response_id: str) -> List[Dict[str, str]]:
-        """Return a list of all snippets of a given response with the given response_id."""
-        logger.info("Querying snippets for response ID: %s", response_id)
-        snippets = self.snippets_table.query_self_table(
-            "SELECT * FROM {snippets_table} WHERE responseId = :response_id",
-            {"snippets_table": self.snippets_table.table_name, ":response_id": response_id})  # Use parameters here too
-        logger.info("Found %d snippets for response_id: %s", len(snippets), response_id)
-        return snippets
+        logger.warning("NET YET IMPLEMENTED")
+        return []
+
+        # """Return a list of all snippets of a given response with the given response_id."""
+        # logger.info("Querying snippets for response ID: %s", response_id)
+        # snippets = self.snippets_table.query_table(
+        #     "SELECT * FROM {snippets_table} WHERE responseId = :response_id",
+        #     {"snippets_table": self.snippets_table.table_name, ":response_id": response_id})  # Use parameters here too
+        # logger.info("Found %d snippets for response_id: %s", len(snippets), response_id)
+        # return snippets
 
     def get_response_row(self, query_request: Dict[str, any], query_response: Dict[str, str]) -> Dict[str, any]:
         """ This function takes a query_request object and its query_response object to create a flat dict of
@@ -151,10 +201,13 @@ class YouTubeStorage:
         }
         logger.info("Generated response row with ID: %s", response_id)
         print(f"response_row:\n{json.dumps(response_row,indent=2)}")
-        pre_processed_response_row = self.responses_table.get_preprocessed_item(response_row)
-        print(f"pre_processed_response_row:\n{json.dumps(pre_processed_response_row,indent=2)}")
+        pre_processed_response_row = self.responses_table.item_preprocessor.get_preprocessed_item(response_row)
+        flattened_response_row = DynamoDbDictUtils.flatten_dict(
+                current_dict=pre_processed_response_row,
+                parent_key='')
+        print(f"flattened_response_row:\n{json.dumps(flattened_response_row,indent=2)}")
 
-        return pre_processed_response_row
+        return flattened_response_row
 
     def get_snippet_rows(self, query_response: Dict[str, any], response_id: str) -> List[Dict[str, any]]:
         """ This function takes parent reponse_id and a query_response and extracts its list of associated
@@ -183,9 +236,9 @@ class YouTubeStorage:
             for key,val in flattened_thumbnails.items():
                 snippet_row[key] = val
 
-            print(f"snippet_row:\n{json.dumps(snippet_row,indent=2)}")
-            pre_processed_snippet_row = self.snippets_table.get_preprocessed_item(snippet_row)
-            print(f"pre_processed_snippet_row:\n{json.dumps(pre_processed_snippet_row,indent=2)}")
+            # print(f"snippet_row:\n{json.dumps(snippet_row,indent=2)}")
+            pre_processed_snippet_row = self.snippets_table.item_preprocessor.get_preprocessed_item(snippet_row)
+            # print(f"pre_processed_snippet_row:\n{json.dumps(pre_processed_snippet_row,indent=2)}")
             pre_processed_snippet_rows.append(pre_processed_snippet_row)
 
         logger.info("Generated %d pre_processed_snippet_rows for response ID: %s", len(pre_processed_snippet_rows), response_id)

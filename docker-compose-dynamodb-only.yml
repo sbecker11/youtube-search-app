@@ -1,4 +1,3 @@
-version: '3.7'
 services:
   localstack:
     image: localstack/localstack:latest
@@ -10,18 +9,20 @@ services:
       - DEBUG=1
       - DATA_DIR=/tmp/localstack/data
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - LOCALSTACK_CACHE_DIR=/.cache  # This might need adjustment based on LocalStack's configuration
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /tmp/localstack:/tmp/localstack
-      - /Users/sbecker11/dynamodb_data:/dynamodb_data
-    user: "sbecker11:staff"  # This assumes 'sbecker11' is in the 'staff' group on your host system
+      - /Users/sbecker11/localstack_tmp:/tmp/localstack    # chown 205:20 ~/localstack_tmp
+      - /Users/sbecker11/localstack_cache:/.cache     # ran sudo chown 205:20 ~/localstack_cache
+      - /Users/sbecker11/dynamodb_data:/dynamodb_data      # chown 205:20 ~/dhynamodb_data
+    user: 502:20  # same as "sbecker11:staff"
 
 
 # put it up
 # docker compose -f docker-compose-dynamodb-only.yml up
 
 # check its status
-# docker compose -f docker-compose-dynamo-only.yml ps
+# docker compose -f docker-compose-dynamodb-only.yml ps
 
 # take it down
-# docker compose -f docker-compose-dynamo-only.yml dn
+# docker compose -f docker-compose-dynamodb-only.yml down

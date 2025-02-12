@@ -19,7 +19,7 @@ class DynamoDbItemPreProcessor:
         # Default for table_name "Snippets" is "snippet."
         # Default for table_name "Parties" is "party."
         if not attribute_name_prefix:
-            attribute_name_prefix = DynamoDbStringUtils.singularize(self.table_name.lower()) + '.'
+            attribute_name_prefix = self.singularize(self.table_name.lower()) + '.'
         self.attribute_name_prefix = attribute_name_prefix
 
         for attr in self.table_config['AttributeDefinitions']:
@@ -77,6 +77,23 @@ class DynamoDbItemPreProcessor:
         if isinstance(value, (int, float)):
             return bool(value)
         raise ValueError(f"Cannot convert {value} to a boolean")
+
+    def singularize(self, word):
+        """
+        Convert a plural English word to its singular form.
+
+        Args:
+            word (str): The plural word to convert
+
+        Returns:
+            str: The singular form of the word
+        """
+        if word.endswith('ies'):
+            return word[:-3] + 'y'
+        if word.endswith('s'):
+            return word[:-1]
+        return word
+
 
     @staticmethod
     def example_usage(a_snippets_table_config):
