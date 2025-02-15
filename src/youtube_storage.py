@@ -1,15 +1,17 @@
 import os
 import json
 import logging
-from typing import List, Dict
+from typing import List, Dict, Any
 from datetime import datetime
 import uuid
 import boto3
+from random import random, choice
 from dotenv import load_dotenv
-from youtube_table import YouTubeTable, DbTable
+from botocore.exceptions import ClientError
+from youtube_table import YouTubeTable
 from dynamodb_utils.json_utils import DynamoDbJsonUtils
 from dynamodb_utils.dict_utils import DynamoDbDictUtils
-from dynamodb_utils.dbtypes import *
+from dynamodb_utils.dbtypes import DbTable, DbItem, DbIndex
 
 load_dotenv()
 
@@ -17,7 +19,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class YouTubeStorageQueryException(Exception):
+class YouTubeStoragepropException(Exception):
     pass
 class YouTubeStorageException(Exception):
     pass
@@ -66,12 +68,16 @@ class YouTubeStorage:
         # create the YouTubeTables or die
         self.tables = []
         try:
+            # use the response_table_config to create the resources YouTubeTable,
+            # which creates a new dbTable if needed and then references it
             self.responses_table = YouTubeTable(self.responses_table_config)
             self.tables.append(self.responses_table)
         except boto3.exceptions.Boto3Error as error:
             logger.error("failed attempt to create YouTubeTable for Responses table error:%s", {error})
             raise error
         try:
+            # use the snippets_table_config to create the Snippets YouTubeTable,
+            # which creates a new dbTable if needed and then references it
             self.snippets_table = YouTubeTable(self.snippets_table_config)
             self.tables.append(self.snippets_table)
         except boto3.exceptions.Boto3Error as error:
@@ -84,7 +90,6 @@ class YouTubeStorage:
     def get_tables(self) -> List[YouTubeTable]:
         return self.tables
 
-
     def count_num_dbTables(self) -> int:
         response = self.dynamodb_client.list_tables()
         table_count = len(response['TableNames'])
@@ -96,101 +101,73 @@ class YouTubeStorage:
                 return table.count_items()
         return 0
 
-    def find_all_distinct_querys(self) -> List[str]:
-        """Return a list of all distinct querys found among all responses sorted alphabetically."""
-        logger.info("Querying all distinct querys.")
-        responses_table = self.responses_table
-        all_responseItems = responses_table.scan_table()
-        if not all_responseItems:
-            logger.warning("theresponses_table is empty")
-            return []
+    def dump_tables(self, json_file:str):
+        if not json_file or not json_file.endswith(".json"):
+            logger.error("output json_file undefined or is not a valid json file")
+            raise YouTubeStorageException("output json_file undefined or is not a valid json file")
+  
+        logger.info(f"Ready to dump all data to json_file: {json_file}")
+                    
+        
+        """ dump the configs and all items of all tables into a single json_file"""
+        alltables = {      
+            "responses.table_config" : self.responses_table.get_table_config(),
+            "responses.items" : self.responses_table.scan_items(),
+            "snippets.table_config" : self.snippets_table.get_table_config(),
+            "snippets.items" : self.snippets_table.scan_items()
+        }
+        DynamoDbJsonUtils.dump_json_file(alltables, json_file)
 
-        # extra validation
-        responseItem0 = all_responseItems[0]
-        responseItem0_text = DynamoDbJsonUtils.json_dumps(responseItem0)
-        recreatedResponseItem0 = json.loads(responseItem0_text)
-        print(responseItem0_text)
-        query_dbAttr = "queryDetails.q"
-        select_by_dbAttrs = [query_dbAttr]
-        if query_dbAttr not in recreatedResponseItem0:
-            raise RuntimeError(f"select_by_dbAttrs NOT found in {json.dumps(recreatedResponseItem0)}")
-
-        filtered_dbItems = responses_table.select_dbItems_by_dbAttrs(all_responseItems, select_by_dbAttrs)
-        distinct_values = {}
-        for dbAttr in select_by_dbAttrs:
-            distinct_values[dbAttr] = set([dbItem[dbAttr] for dbItem in filtered_dbItems if dbAttr in dbItem])
-
-        distinct_queries = list(distinct_values[query_dbAttr])
-        logger.info("Found %d distinct querys", len(distinct_queries))
-        logger.info(f"distinct querys {distinct_queries}")
-
-        return distinct_queries
+        logger.info("all tables dumped successfully!")
 
 
-    def find_distinct_request_queries(self):
-        logger.info("Finding all distinct request queries.")
-        responses_table = self.responses_table
-        response_dbItems = responses_table.scan_table()
-        query_dbAttr = "queryDetails.q"
-        filter_by_dbAttrs = [query_dbAttr]
-        distinct_values_by_dbAttr = self.find_distinct_dbItem_values_over_dbAttrs(response_dbItems, filter_by_dbAttrs)
-        distinct_query_values = distinct_values_by_dbAttr[query_dbAttr]
-        logger.info("Found distinct request queries: {distinct_query_values}")
-        fast_api_response = {}
-        pos = 0
-        for distinct_query_value in distinct_query_values:
-            fast_api_response[pos] = distinct_query_value
-            post += 1
-        logger.info(f"fast_api_response: {json.dumps(fast_api_response,inden=4)}" )
-        return fast_api_response
+    def load_tables(self, json_file:str):
+        if not json_file or not json_file.endswith(".json") or not os.path.exists(json_file):
+            logger.error("input json_file undefined or is not a valid json file")
+            raise YouTubeStorageException("input json_file undefined or is not a valid json file")
 
-    # this is used only by find_distinct_request_queries
-    def find_distinct_dbItem_values_over_dbAttrs(self, dbItems:List[DbItem], filter_by_dbAttrs:List[DbAttr]) -> Dict[DbAttr,Any]:
-        """Return a list of all distinct values of filter_by_dbAttrs found over the given dbItems."""
-        target_dbItem = dbItems[0]
-        target_dbItem_text = DynamoDbJsonUtils.json_dumps(target_dbItem)
-        target_dbItem_recon_dict = json.loads(target_dbItem_text)
-        for filter_by_dbAttr in filter_by_dbAttrs:
-            if filter_by_dbAttr not in target_dbItem_recon_dict:
-                raise RuntimeError(f"find_distinct_dbItem_values_over_dbAttrs dbAtt:{filter_by_dbAttr} NOT found in {json.dumps(target_dbItem_recon_dict)}")
-        filtered_dbItems = responses_table.select_dbItems_by_dbAttrs(all_responseItems, select_by_dbAttrs)
-        distinct_values_by_dbAttr = {}
-        for dbAttr in select_by_dbAttrs:
-            distinct_values_by_dbAttr[dbAttr] = set([ dbItem[dbAttr] for dbItem in filtered_dbItems ])
-        return distinct_values_by_dbAttr
+        logger.info(f"Ready to load all data from json_file: {json_file}")
 
-    def find_response_ids_by_query(self, query: str) -> List[str]:
-        logger.warning("NOT YET IMPLEMENTED")
-        return []
+        """ load all items of all tables from a single json_file"""
+        alltables = DynamoDbJsonUtils.load_json_file(json_file)
 
-        # """Return a list of response_id that contained the given query in its request."""
-        # logger.info("Querying response IDs for query: %s", query)
+        if not isinstance(alltables, dict):
+            raise YouTubeStorageException("alltables is not a dict!")
+        
+        # verify that the tables exist or were just created by YouTubeTable
+        if not self.responses_table.dbTable_exists():
+            raise YouTubeStorageException("responses_table does not exist!")
+        if self.snippets_table.dbTable_exists():
+            raise YouTubeStorageException("snippets_table does not exist!")
+                                                              
+        # verify that the table configs match
+        if self.responses.get_table_config() != alltables["responses.table_config"]:
+            raise YouTubeStorageException("responses_table_config does not match!") 
+        else:
+            logger.info("loaded responses_table_config matches internal responses_table_config!")
 
-        # response_ids = self.responses_table.query_table(
-        #     "SELECT response_id FROM {responses_table} WHERE query = :query",
-        #     {"responses_table": self.responses_table.table_name, ":query": query})  # Use parameters to avoid SQL injection
-        # logger.info("Found %d unique response IDs for query: %s", len(response_ids), query)
-        # return response_ids
+        if self.snippets.get_table_config() != alltables["snippets.table_config"]:
+            raise YouTubeStorageException("snippets_table_config does not match!")
+        else:
+            logger.info("loaded snippets_table_config matches internal snippets_table_config!")
+        
+        # load all items maintaining idemotency and avoiding duplicates
+        self.responses_table.load_items(alltables["responses.items"], idempotent=True)
+        logger.info("loaded %d items into the Responses table", len(alltables["responses.items"]))
 
-    def find_snippets_by_response_id(self, response_id: str) -> List[Dict[str, str]]:
-        logger.warning("NET YET IMPLEMENTED")
-        return []
+        self.snippets_table.load_items(alltables["snippets.items"], itempotent=True)
+        logger.info("loaded %d items into the Snippets table", len(alltables["snippets.items"]))
 
-        # """Return a list of all snippets of a given response with the given response_id."""
-        # logger.info("Querying snippets for response ID: %s", response_id)
-        # snippets = self.snippets_table.query_table(
-        #     "SELECT * FROM {snippets_table} WHERE responseId = :response_id",
-        #     {"snippets_table": self.snippets_table.table_name, ":response_id": response_id})  # Use parameters here too
-        # logger.info("Found %d snippets for response_id: %s", len(snippets), response_id)
-        # return snippets
+        logger.info("all tables loaded successfully!")
 
-    def get_response_row(self, query_request: Dict[str, any], query_response: Dict[str, str]) -> Dict[str, any]:
-        """ This function takes a query_request object and its query_response object to create a flat dict of
+    def preprocess_response_row(self, prop_request: Dict[str, any], query_response: Dict[str, str]) -> Dict[str, any]:
+        """ This function takes a prop_request object and its query_response object to create a flat dict of
             attribute/value pairs. The attribute/value pairs of this dict are preprocessed and will then be
-            stored as a row of attributes in the "Reponses" dynamodb table. Each row having a unique response_id """
+            stored as a row of attributes in the "Reponses" dynamodb table. Each row having a unique etag """
         response_id = str(uuid.uuid4())  # Generate a unique primary key
+        print(f"response_id:{response_id}")
         response_row = {
-            'responseId': response_id,  # PK
+            'response_id': response_id,  # PK refernced by Snippets.response_id (FK)
             'etag': query_response.get('etag', ''),
             'kind': query_response.get('kind', ''),
             "nextPageToken": query_response.get('nextPageToken', ''),
@@ -199,17 +176,17 @@ class YouTubeStorage:
                 "totalResults": query_response.get('pageInfo', {}).get('totalResults', 0),
                 "resultsPerPage": query_response.get('pageInfo', {}).get('resultsPerPage', 0)
             },
-            "requestSubmittedAt": query_request.get('requestSubmittedAt', datetime.utcnow().isoformat()),
+            "requestSubmittedAt": prop_request.get('requestSubmittedAt', datetime.utcnow().isoformat()),
             "responseReceivedAt": datetime.utcnow().isoformat(),
             "queryDetails": {
-                "part": query_request.get('part', ''),
-                "q": query_request.get('q', ''),
-                "type": query_request.get('type', ''),
-                "maxResults": query_request.get('maxResults', ''),
-                "query": query_request.get('query', '')
+                "part": prop_request.get('part', ''),
+                "q": prop_request.get('q', ''),
+                "type": prop_request.get('type', ''),
+                "maxResults": prop_request.get('maxResults', ''),
+                "query": prop_request.get('query', '')
             }
         }
-        logger.info("Generated response row with ID: %s", response_id)
+        logger.info("Generated response row with response_id: %s", response_id)
         print(f"response_row:\n{json.dumps(response_row,indent=2)}")
         pre_processed_response_row = self.responses_table.item_preprocessor.get_preprocessed_item(response_row)
         flattened_response_row = DynamoDbDictUtils.flatten_dict(
@@ -219,7 +196,7 @@ class YouTubeStorage:
 
         return flattened_response_row
 
-    def get_snippet_rows(self, query_response: Dict[str, any], response_id: str) -> List[Dict[str, any]]:
+    def preprocess_snippet_rows(self, query_response: Dict[str, any], response_id: str) -> List[Dict[str, any]]:
         """ This function takes parent reponse_id and a query_response and extracts its list of associated
             items. Each item has a hierarchical snippet object. This object is transformed into a flattened
             dict of preprocessed attribute/value pairs. Each flattened dict will be stored as a row
@@ -228,7 +205,7 @@ class YouTubeStorage:
         for item in query_response.get('items', []):
             snippet = item.get('snippet', {})
             snippet_row = {
-                'responseId': response_id,  # FK to responses_table
+                'response_id': response_id,  # FK to responses_table
                 'videoId': item.get('id', {}).get('videoId', ''),
                 'publishedAt': snippet.get('publishedAt', ''),
                 'channelId': snippet.get('channelId', ''),
@@ -257,27 +234,132 @@ class YouTubeStorage:
     def add_query_request_and_response(self, query_request: Dict[str, any], query_response: Dict[str, any]):
         """ Adds a query request and its query response object to the database. """
         logger.info("computing response_row from query_request and query_response.")
-        response_row = self.get_response_row(query_request, query_response)
+        response_row = self.preprocess_response_row(query_request, query_response)
 
         logger.info("computing snippet_rows from query_response.")
-        snippet_rows = self.get_snippet_rows(query_response, response_row['responseId'])
+        snippet_rows = self.preprocess_snippet_rows(query_response, response_row['response_id'])
 
         try:
-            # Add response row to the responses table (not batched)
-            self.responses_table.add_item(response_row)
-            logger.info("Added response row with ID: %s", response_row['responseId'])
+            # Add response row to the responses table (not batched) in idempotent fashion
+            self.responses_table.add_item(response_row, idempotent=True)
+            logger.info("Added response row with ID: %s", response_row['response_id'])
 
-            # Add snippet rows to the snippets table
-            self.snippets_table.reset_batch()
-            for snippet_row in snippet_rows:
-                self.snippets_table.add_item_to_batch(snippet_row)
-            self.snippets_table.flush_batch()
+            # Add snippet rows to the snippets table using a batch writer
+            self.snippets_table.add_items(snippet_rows, idempotent=True)
+            logger.info("Added %d snippet rows for response ID: %s", len(snippet_rows), response_row['response_id'])
 
-            logger.info("Added %d snippet rows for response ID: %s", len(snippet_rows), response_row['responseId'])
         except boto3.exceptions.Boto3Error as error:
             logger.error("Failed to add request and response to database: %s", str(error))
+            raise error
             # Consider implementing retry logic here if it's appropriate for your use case.
+
+    DbIndex = Dict[str, Dict[str, Any]]
+
+    def get_item_hashkey(dbItem:DbItem, key_prop_names:List[str]) -> str:
+        """ an example get_item_key function that returns a hashkey
+            from a composite list of prop values
+        """
+        parts = []
+        for key_prop_name in key_prop_names:
+            key_prop_value = dbItem.get(key_prop_name)
+            if key_prop_value:
+                part = f"{key_prop_name}:{key_prop_value}"
+                parts.append(part)
+        composite = "-".join(parts)
+        hash_int = hash(composite)
+        hash_key = str(hash_int)
+        return hash_key
+
+    def create_key_indexed_items(self, dbItems: List[DbItem], get_item_key) -> DbIndex:
+        """ use a get_item_key function to create an index of the given dbItems.
+            if the key is already in use, then create a list to hold all dbItems
+            that share that key and set the value of the key to the list of
+            items.
+        """
+        key_indexed_items = {} # this a Dict[str,Any] where Any can be DbItem or list[DbItem]
+        for dbItem in dbItems:
+            key = get_item_key(dbItem)
+
+            # handle collision : replace key value with a list of DbItems with that key #
+            if key in key_indexed_items:
+                current_value = key_indexed_items[key]
+                if isinstance(current_value, list):
+                    current_items_list = current_value
+                    current_items_list.append(dbItem)
+                    key_indexed_items[key] = current_items_list
+                if isinstance(current_value, DbItem):
+                    new_items_list = list(current_value, dbItem)
+                    key_indexed_items[key] = new_items_list
+            else:
+                key_indexed_items[key] = dbItem
+        return key_indexed_items
+
+    def create_etag_indexed_items(self, dbItems:List[DbItem]) -> DbIndex:
+        def get_item_key_func(dbItem): return dbItem['etag']
+        return self.create_key_indexed_items(dbItems, get_item_key_func)
+
+    def create_key_sorted_items(self, index:DbIndex, get_item_key_func) -> List[DbItem]:
+        """Sort the index using get_item_key(item) for each item."""
+        key_sorted_items = sorted(index.values(), key=lambda x: get_item_key_func(x))
+        return key_sorted_items
+
+    # def create_publishedAt_sorted_items(self, index:DbIndex) -> List[DbItem]:
+    #     """Sort the index by the given prop_name."""
+    #     get_item_key = item["snippet.publishedAt"]
+    #     return self.create_key_sorted_items(index, get_item_key_func)
+
+    # def dbItem_filter(self, dbItem, start_time, end_time):
+    #     dbItem_time = dbItem['snippet.publishedAt']
+    #     return start_time <= dbItem_time and dbItem_time < endTime
+
+    # def get_filtered_dbItems(self, dbItems: List[DbItem], dbItem_filter):
+    #     return [dbItem for dbItem in dbItems if dbItem_filter(dbItem)]
+
+    # def find_items_by_etag(self, etag_index: DbIndex, etag: str) -> Dict[str, Any]:
+    #     """Find a dbItem by its etag."""
+    #     return etag_index.get(etag)
+
+
+    # def test_create_etag_indexed_items(self, table_name):
+    #     dbTable = self.find_dbTable_by_table_name(table_name)
+    #     dbItems = dbTable.scan_items(dbTable)
+    #     eTag_indexed_items = self.create_etag_indexed_items(dbItems)
+    #     all_etags = [dbItem['etag'] for dbItem in eTag_indexed_items]
+    #     num_random_etags = 3
+    #     random_etags = []
+    #     random_dbItems = []
+    #     for i in range(num_random_etags):
+    #         random_etags.append(random.choice(all_etags))
+    #     for etag in random_etags:
+    #         random_dbItems.append(eTag_indexed_items[eTag])
+    #     for random_dbItem in random_dbItems:
+    #         assert random_dbItem['etag'] in random_etags
+
+    # def test_get_publishedAt_sorted_items_in_date_range(self):
+    #     dbTable = self.snippets_table
+    #     all_snippet_dbItems = dbTable.scan_items("Snippets")
+    #     prop_name = "snippit.publishedAt"
+    #     date_sorted_dbItems = self.create_publishedAt_sorted_items(all_snippet_dbItems)
+    #     # find two random datetimes using prop_name "snippit.publishedAt"
+    #     random_etags = [] 
+    #     random_dbItem_0 = random_etags.append(random.choice(date_sorted_dbItems))
+    #     random_dbItem_1 = random_etags.append(random.choice(date_sorted_dbItems))
+    #     from_date = min(random_dbItem_0[prop_name], random_dbItem_1[prop_name])
+    #     to_date = max(random_dbItem_0[prop_name], random_dbItem_1[prop_name])
+    #     inrange_snipped_dbItems = self.get_publishedAt_sorted_items_in_date_range(
+    #         all_snippet_dbItems, from_date, to_date)
+    #     print(f"all_snippet_dbItems:{len(all_snippet_dbItems)}")
+    #     print(f"date_sorted_dbItems:{len(date_sorted_dbItems)}")
+    #     print(f"fromDate:{from_date.isoformat()}")
+    #     print(f"toDate:{to_date.isoformat()}")
+    #     for dbItem in inrange_snipped_dbItems:
+    #         print(f"dbItem.{prop_name}:{dbItem[prop_name]}")
+
 
 if __name__ == "__main__":
     storage = YouTubeStorage.get_singleton()
-    logger.info("num_dbTables:%d",storage.count_num_dbTables())
+    logger.info("num_dbTables:%d", storage.count_num_dbTables())
+    storage.test_create_etag_indexed_items()
+    storage.test_get_publishedAt_sorted_items_in_date_range()
+
+

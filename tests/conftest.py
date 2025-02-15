@@ -13,13 +13,13 @@ def dynamodb():
             TableName='Responses',
             KeySchema=[
                 {
-                    'AttributeName': 'responseId',
+                    'AttributeName': 'response_id',
                     'KeyType': 'HASH'
                 }
             ],
             AttributeDefinitions=[
                 {
-                    'AttributeName': 'responseId',
+                    'AttributeName': 'response_id',
                     'AttributeType': 'S'
                 }
             ],
@@ -35,7 +35,7 @@ def dynamodb():
             TableName='Snippets',
             KeySchema=[
                 {
-                    'AttributeName': 'responseId',
+                    'AttributeName': 'response_id',
                     'KeyType': 'HASH'
                 },
                 {
@@ -45,7 +45,7 @@ def dynamodb():
             ],
             AttributeDefinitions=[
                 {
-                    'AttributeName': 'responseId',
+                    'AttributeName': 'response_id',
                     'AttributeType': 'S'
                 },
                 {

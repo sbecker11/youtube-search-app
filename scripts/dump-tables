@@ -1,0 +1,9 @@
+#!/bin/bash
+
+(
+    echo "sourcing scripts/activate
+    source scripts/activate
+
+    echo "calling scripts/dump_tables.py
+    python scripts/dump_tables.py $@
+)

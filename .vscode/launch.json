@@ -37,6 +37,13 @@
             "request": "launch",
             "program": "${workspaceFolder}/scripts/filter_tables.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: run storage",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/youtube_storage.py",
+            "console": "integratedTerminal"
         }
     ]
 }

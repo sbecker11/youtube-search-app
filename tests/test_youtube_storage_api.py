@@ -26,9 +26,9 @@ def test_add_query_response(youtube_storage):
     youtube_storage.add_query_response(query_engine, youtube_response)
     # Add assertions to verify the behavior
     table = youtube_storage.dynamodb.Table('Responses')
-    response = table.get_item(Key={'responseId': youtube_response['etag']})
+    response = table.get_item(Key={'response_id': youtube_response['etag']})
     assert 'Item' in response
 
     table = youtube_storage.dynamodb.Table('Snippets')
-    response = table.query(KeyConditionExpression=Key('responseId').eq(youtube_response['etag']))
+    response = table.query(KeyConditionExpression=Key('response_id').eq(youtube_response['etag']))
     assert response['Count'] == 0  # Since items are empty

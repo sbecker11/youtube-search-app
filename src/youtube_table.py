@@ -4,13 +4,19 @@ import json
 import logging
 import os
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 
 import boto3
 import botocore
 from boto3.resources.base import ServiceResource
+from botocore.exceptions import ClientError
 
 from dynamodb_utils.item_utils import DynamoDbItemPreProcessor
 from dynamodb_utils.filter_utils import DynamoDbFilterUtils
+from dynamodb_utils.json_utils import DynamoDbJsonUtils
+from dynamodb_utils.table_utils import DynamoDbTableUtils
+from dynamodb_utils.dict_utils import DynamoDbDictUtils
+from dynamodb_utils.validators import DynamoDbValidators
 from dynamodb_utils.dbtypes import *
 
 # Configure logging
@@ -33,28 +39,31 @@ class YouTubeTable:
 
     def __init__(self, table_config: Dict[str, str]):
         try:
+            # save table config and name
             self.table_config = table_config
             self.table_name = self.table_config['TableName']
+
+            # check if the table already exists
             self.dbTable = YouTubeTable.find_dbTable_by_name(self.table_name)
+
+            # if the table does not exist, create it
             if not self.dbTable:
                 self.dbTable = YouTubeTable.create_dbTable(self.table_config)
 
+            # create a preprocessor for the items
             self.item_preprocessor = DynamoDbItemPreProcessor(self.table_config)
 
-            # initialize the batch list
-            self.reset_batch()
-
         except boto3.exceptions.Boto3Error as error:
-            print(f"Error initializing DynamoDb resource: {error}")
+            logger.error(f"Error initializing DynamoDb resource: {error}")
             raise
         except FileNotFoundError as error:
-            print(f"Configuration file not found: {error}")
+            logger.error(f"Configuration file not found: {error}")
             raise
         except json.JSONDecodeError as error:
-            print(f"Error decoding JSON configuration: {error}")
+            logger.error(f"Error decoding JSON configuration: {error}")
             raise
 
-        logger.info("YouTubeTable '%s' successfully initialized", self.table_name)
+        logger.info("YouTubeTable '%s' successfully initialized with dbTable", self.table_name)
 
     def dbTable_exists(self):
         """
@@ -68,7 +77,7 @@ class YouTubeTable:
         except self.dynamodb_client.exceptions.ResourceNotFoundException:
             return False
         except Exception as error:
-            print(f"Error checking if dynamoDb table exists: {error}")
+            logger.error(f"Error checking if dynamoDb table exists: {error}")
             raise
 
     def get_dbTable_config(table_name):
@@ -120,7 +129,7 @@ class YouTubeTable:
             found_dbTable = None
         except boto3.exceptions.Boto3Error as error:
             # Catch other exceptions and log them for debugging.
-            print(f"An error occurred while checking for table {table_name}: {error}")
+            logger.error(f"An error occurred while checking for table {table_name}: {error}")
             found_dbTable = None
 
         return found_dbTable
@@ -179,63 +188,6 @@ class YouTubeTable:
             logger.error("An error occurred in add_item_to_dbTable: %s: %s", dbTable.table_name, {error})
             raise
 
-    def add_item(self, item: DbItem):
-        """
-        Add a new DbItem to the dbTable of this YouTubeTable.
-        """
-        YouTubeTable.add_item_to_dbTable(item, self.dbTable)
-
-    @classmethod
-    def add_item_to_dbTable_batch(cls, dbTable_batch:List[DbItem], item: DbItem):
-        """
-        Add an item to the dbTable_batch.
-
-        :param item: a DbItem which is a dict representing the item to add.
-        """
-        try:
-            dbTable_batch.append(item)
-        except boto3.exceptions.Boto3Error as error:
-            logger.error("An error occurred in add_item_to_dbTable_batch for dbTable: %s: %s", dbTable.table_name, {error})
-            raise
-
-
-    @classmethod
-    def flush_dbTable_batch(cls, dbTable_batch:List[DbItem], dbTable:DbTable):
-        """
-        Flush the DBItems of the given dbTable_batch to the given dbTable
-        """
-        num_items = len(dbTable_batch)
-        if num_items == 0:
-            logger.info("flush of empty dbTable_batch ignored")
-            return
-        try:
-            logger.info("flushing %d items from dbTable_batch", num_items)
-            with dbTable.batch_writer() as batch:
-                for item in dbTable_batch:
-
-                    print(f"putting item\n{json.dumps(item, indent=2)}")
-                    batch.put_item(Item=item)
-
-            dbTable_batch = []
-        except boto3.exceptions.Boto3Error as error:
-            logger.error("An error occurred in flush_dbTable_batch with %d items for dbTable: %s: %s",
-                len(dbTable_batch), dbTable.table_name, {error})
-            logger.info()
-            raise
-
-    def reset_batch(self):
-        self.items_to_add = []
-
-    def add_item_to_batch(self, item: DbItem):
-        YouTubeTable.add_item_to_dbTable_batch(self.items_to_add, item)
-
-    def flush_batch(self):
-        """
-        Flush the DBItems of the given items_to_add list of this YouTubeTable object
-        """
-        YouTubeTable.flush_dbTable_batch(self.items_to_add, self.dbTable)
-
-
     def get_item(self, key: DbItem) -> DbItem:
         """
         Retrieve a DbItem from the YouTubeTable.
@@ -252,7 +204,7 @@ class YouTubeTable:
 
     def update_item(self, key: Dict[str,Any], update_expression: str, expression_attribute_values: Dict[str,Any]):
         """
-        Update an item in the YouTubeTable.
+        Update an item in the dbTable of this YouTubeTable.
 
         :param key: A dictionary representing the key of the item to update.
         :param update_expression: An update expression string.
@@ -289,29 +241,8 @@ class YouTubeTable:
         """
         return self.scan_dbTable(self.dbTable)
 
-    def count_table_items(self) -> int:
-        """ Returns the count of all dbItem(rows) in the dbTable of this YouTubeTable """
-        return YouTubeTable.count_dbTable_items(self.dbTable)
-
-    def delete_table(self):
-        """ delete this object's dbTable and remove this
-            YouTubeTable's reference to that dbTable
-        """
-        self.delete_dbTable(self.dbTable)
-        self.dbTable = None
-
-    def select_dbItems_by_dbAttrs(self,
-        dbItems:List[DbItem],
-        select_by_dbAttrs:List[DbAttr]) -> List[DbItem]:
-        return DynamoDbFilterUtils.select_dbItems_by_dbAttrs(dbItems, select_by_dbAttrs)
-
-    def sort_dbItems_by_dbAttrs(self,
-        dbItems:List[DbItem],
-        sort_by_dbAttrs:List[Tuple[DbAttr, DbSortDir]]) -> List[DbItem]:
-        return DynamoDbFilterUtils.sort_dbItems_by_dbAttrs(dbItems, sort_by_dbAttrs)
-
     def delete_dbTable(self, dbTable):
-        if not dbTable_exists():
+        if not dbTable.exists():
             logger.warning("delete_dbTable ignored: table %s does not exist", dbTable.table_name)
             return
         try:
@@ -360,40 +291,93 @@ class YouTubeTable:
             logger.eror("An error occurred in scan_dbTable %s: %s", dbTable.table_name, {error})
             raise
 
+    def load_dbItems(self, dbItems:List[DbItem], idempotent:bool=True):
+        """
+        Load a list of DbItems into the dbTable of this YouTubeTable.
 
+        :param dbItems: A list of dictionaries representing the items to load.
+        :param idempotent: If True, use conditional writes to ensure items do not already exist.
+        """
+        YouTubeTable.put_dbTable_items(self.dbTable, dbItems, idempotent)
 
+    def add_item(self, item:DbItem, idempotent=True):
+        YouTubeTable.put_dbTable_items(self.dbTable, [item], idempotent)
+        """ convenience function """
+
+    def add_items(self, items:List[DbItem], idempotent=True):
+        YouTubeTable.put_dbTable_items(self.dbTable, items, idempotent)
+        """ convenience function """
 
     @classmethod
-    def dump_dbTable_to_json(cls, dbTable_name:str, json_file_path:str):
-        """ find a dbTable by name and dump its contents to the given json_file_path
+    def put_dbTable_items(cls, dbTable: DbTable, items: List[DbItem], idempotent: bool = True):
         """
-        dbTable = cls.find_dbTable_by_name(dbTable_name)
-        response = dbTable.scan()
-        data = response['Items']
-        logger.info("dumping %d items from table:%s to %s", len(data), dbTable_name, json_file_path)
-        with open(json_file_path, 'w', encoding="utf-8") as json_file:
-            json.dump(data, json_file, indent=4)
-        logger.info("table:%s dumped %d items", self.table_name, len(data))
-
-    @classmethod
-    def load_dbTable_from_json(cls, dbTable_name:str, json_file_path:str):
-        """ find a dbTable by name, create a new dbTable if needed
-            and load the contents of the given json_file_path into the dbTable
+        If the `idempotent` flag is set to True, the method ensures that items are only added
+        if they do not already exist in the table.
+        Args:
+            dbTable: DbTable: used to create a batch_writer
+            dbItems: List[DbItem] : the items to be stored to the table
+            idempotent (bool): If True, use conditional writes to ensure items do not already exist.
+        Raises:
+            ClientError: If there is an error during any single put item, it will be reported
+            but the function will continue and attempt to store the next item.
+        Notes:
+            - If the table already exists and idempotent is set to true
+              then items will only be inserted if the item's primary key
+              already exists in the table
         """
-        dbTable = cls.find_dbTable_by_name(dbTable_name)
-        if not dbTable:
-            dbTable_config = { "TableName": dbTable_name }
-            dBTable = cls.create_dbTable(dbTable_config)
-            logger.info("created new dbTable with dbTable_config: %s", json.dumps(dbTable_config, indent=2) )
+        logger.info(f"dbTable.type:{type(dbTable)} dbTable.value:{dbTable}")
+        logger.info(f"item.type:{type(items)} item.value:{items}")
+        logger.info(f"idempotent.type:{type(idempotent)} idempotent.value:{idempotent}")
 
-        original_count = cls.count_dbTable_items(dbTable)
-        with open(json_file_path, 'r', encoding="utf-8") as json_file:
-            data = json.load(json_file)
-        load_count = len(data)
-        logger.info("loading %d items from %s into dbTable:%s", load_count, json_file_path, dbTable_name)
-        dbTable_batch = []
-        for item in data:
-            cls.add_item_to_dbTable_batch(item, dbTable_batch)
-        cls.flush_dbTable_batch(dbTable_batch, dbTable)
-        final_count = cls.count_dbTable_items(dbTable)
-        logger.info("dbTable:%s original_count:%d loaded_count:%d final_count:%d", dbTable_name, original_count, final_count)
+        num_items = len(items)
+        num_failed_items = 0
+        successful_writes = []
+        with dbTable.batch_writer() as dbBatch:
+            for index, dbItem in enumerate(items):
+                if DynamoDbValidators.is_valid_dbItem(dbItem):
+                    try:
+                        if idempotent:
+                            # Use conditional write to ensure dbItem does not exist
+                            dbBatch.put_item(
+                                Item=dbItem,
+                                ConditionExpression='attribute_not_exists(#pk)',
+                                ExpressionAttributeNames={'#pk': 'id'}  # Replace 'id' with your partition key
+                            )
+                            successful_writes.append(dbItem)
+                        else:
+                            # Directly put the dbItem without checking for existence
+                            dbBatch.put_item(Item=dbItem)
+                            successful_writes.append(dbItem)
+
+                    except ValueError as error:
+                        logger.error("ValueError: %s", error)
+                    except ClientError as error:
+                        num_failed_items += 1
+                        error_code = error.response['Error']['Code']
+                        error_message = error.response['Error']['Message']
+
+                        # Log detailed error information
+                        logging.error(
+                            f"Error processing item at index {index}. Error Code: {error_code}\n"
+                            f"Error Message: {error_message}\n"
+                            f"Item: {dbItem}\n"
+                            f"Full Error: {error}"
+                        )
+                      
+                        if error.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                            logger.error("The condition for the put operation was not met.")
+                        elif error.response['Error']['Code'] == 'ProvisionedThroughputExceededException':
+                            logger.error("Exceeded provisioned throughput.")
+                        elif error.response['Error']['Code'] == 'ResourceNotFoundException':
+                            logger.error("The table was not found.")
+                        else:
+                            logger.error(f"Unexpected error: {error}")
+                else:
+                    logger.error("Invalid dbItem: %s", dbItem)
+                    num_failed_items += 1
+
+        logger.info("num items total: %d num items saved: %d num items failed:%d", num_items, num_items - num_failed_items, num_failed_items)
+
+
+if __name__ == "__main__":
+    logger.info("Hello there.")

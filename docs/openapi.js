@@ -104,14 +104,14 @@
                 }
             }
         },
-        "/snippets/{response_id}": {
+        "/snippets/{etag}": {
             "get": {
                 "summary": "List Snippets",
-                "description": "return the list of snipped associated with the given response_id",
+                "description": "return the list of snipped associated with the given etag",
                 "operationId": "list_snippets_snippets__response_id__get",
                 "parameters": [
                     {
-                        "name": "response_id",
+                        "name": "etag",
                         "in": "path",
                         "required": true,
                         "schema": {

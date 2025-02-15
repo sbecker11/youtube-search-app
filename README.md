@@ -61,7 +61,7 @@ This docker-compose project creates a local-dynamodb image that runs in a locals
 
 QueryEngine in `src/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. Query `request` and `response` data access operations are handled by the YouTubeStorage object. Example query response data may be found in /data/query_response_head.json and query_response_item.json
 
-Search query requests and responses are stored in the Responses dynamoDb tables by YouTubeStorage in `src/youtube_storage.py`. Each response record is given a unique primary key named `response_id` and stored in the Dynamo `Responses` table. All snippets associated with a response are stored in a `Snippets` table and refer to foreign key `response_id`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_table_config.json`
+Search query requests and responses are stored in the Responses dynamoDb tables by YouTubeStorage in `src/youtube_storage.py`. Each response record is given a unique primary key named `etag` and stored in the Dynamo `Responses` table. All snippets stored in a `Snippets` table and refer to foreign key `etag`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_table_config.json`
 
 YouTubStoreageApi from `src/youtube_searcher_app.py` uses FastAPI to handle queries made by project users against YouTubeStorage. OpenAI documentation is created during `docker-compose up --build` and resides at `/docs`.
 
@@ -374,7 +374,7 @@ print(metadata['statistics']['likeCount'])
 ### Docker build command
 ```bash
 cd /Users/sbecker11/workspace-youtubeyoutube-search-app
-docker compose -f docker-compose-dynamodb-only-no-volumes.yml up 
+docker compose -f docker-compose-dynamodb-only-no-volumes.yml up
 ```
 
 ### Run scanner command

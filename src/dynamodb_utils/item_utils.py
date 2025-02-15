@@ -32,10 +32,12 @@ class DynamoDbItemPreProcessor:
         pre_processed_item = {}
         for attr_name, value in raw_item.items():
             if attr_name in self.key_prefixes:
+                # Prefix the attribute name
                 prefixed_name = f"{self.key_prefixes[attr_name]}{attr_name}"
                 type_mapping = self.type_mappings[attr_name]
                 if type_mapping:
                     try:
+                        # Process the value based on its type mapping
                         if type_mapping == 'S':
                             pre_processed_item[prefixed_name] = self.to_string(value)
                         elif type_mapping == 'N':

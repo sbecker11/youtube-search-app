@@ -3,13 +3,13 @@
 
   "KeySchema": [
     {
-      "AttributeName": "response.etag",
+      "AttributeName": "response_id",
       "KeyType": "HASH"
     }
   ],
   "AttributeDefinitions": [
     {
-      "AttributeName": "response.etag",
+      "AttributeName": "response_id",
       "AttributeType": "S"
     }
   ],

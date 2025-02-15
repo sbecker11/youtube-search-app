@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Dict
+from typing import List
 from time import sleep
 
 import requests
@@ -82,21 +82,19 @@ class YouTubeSearcherApp:
 
         def list_querys():
             """ scan all response items to create a list of all unique query values """
-            queries = self.storage.find_all_distinct_querys()
-            # Return a single dictionary with a key mapping to the list of queries
-            return {"queries": queries}
+            return self.storage.find_all_props('request.q')
 
         def list_responses(query: str):
             """ return a list of responses from requests with query """
             return self.storage.find_response_ids_by_query(query)
 
-        def list_snippets(response_id: str):
-            """ return the list of snipped associated with the given response_id """
-            return self.storage.find_snippets_by_response_id(response_id)
+        def list_snippets(etag: str):
+            """ return the list of snipped associated with the given etag """
+            return self.storage.find_snippets_by_response_id(etag)
 
-        self.fast_api_app.get("/queries", response_model=Dict[str, List[str]])(list_querys)
+        self.fast_api_app.get("/queries", response_model=List[dict])(list_querys)
         self.fast_api_app.get("/responses/{query}", response_model=List[dict])(list_responses)
-        self.fast_api_app.get("/snippets/{response_id}", response_model=List[dict])(list_snippets)
+        self.fast_api_app.get("/snippets/{etag}", response_model=List[dict])(list_snippets)
 
     def verify_navigation_requests(self) -> bool:
         """ Return True if all navigation requires used by FastAPI routes return values
@@ -108,14 +106,14 @@ class YouTubeSearcherApp:
         SLEEP_SECS = 5.0
         while num_attempts <= MAX_FAILED_ATTEMPTS:
             try:
-                queries = self.storage.find_all_distinct_querys()
+                queries = self.storage.find_all_querys()
                 assert len(queries) > 0
-                # test_query = queries[0]
-                # response_ids = self.storage.find_response_ids_by_query(test_query)
-                # assert len(response_ids) >  0
-                # test_response_id = response_ids[0]
-                # snippets = self.storage.find_snippets_by_response_id(test_response_id)
-                # assert len(snippets) > 0
+                test_query = queries[0]
+                response_ids = self.storage.find_response_ids_by_query(test_query)
+                assert len(response_ids) >  0
+                test_response_id = response_ids[0]
+                snippets = self.storage.find_snippets_by_response_id(test_response_id)
+                assert len(snippets) > 0
                 logger.info("Storage functions verified successfully")
                 return True
             except AssertionError as error:
@@ -125,25 +123,21 @@ class YouTubeSearcherApp:
         logger.error("returning False after %d failed attempts", MAX_FAILED_ATTEMPTS)
         return False
 
-
-
     @staticmethod
     def main():
         logger.info("Welcome to YouTubeSearcherApp")
         searcher = YouTubeSearcherApp.get_singleton()
 
         if APP_RUN_MODES['USE_SCANNER'] == 'once':
-            def on_scan_complete():
+            def doit():
                 searcher.verify_navigation_requests()
                 searcher.run_fast_api_app(host="localhost", port=8000)
-                logger.info("open FastAPI at http://localhost:8000")
+                logger.info("open FastAPI at http:/localhost:8000")
 
-            searcher.scanner.run_once(on_scan_complete)
+            searcher.scanner.run_once( doit )
 
-        else:
-            searcher.verify_navigation_requests()
-            searcher.run_fast_api_app(host="localhost", port=8000)
-            logger.info("open FastAPI at http://localhost:8000")
+
+
 
 
 if __name__ == "__main__":

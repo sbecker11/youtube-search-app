@@ -45,7 +45,7 @@
       "response.etag": {
         "S": "SpH9JnQTah47E6gjAFSuzA76c8M"
       },
-      "responseId": {
+      "response_id": {
         "S": "8f9f7ac5-4fc8-4509-a321-46be90d7d2e2"
       },
       "responseReceivedAt": {
