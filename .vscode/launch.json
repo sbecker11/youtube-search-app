@@ -3,18 +3,18 @@
     "configurations": [
 
         {
-            "name": "Python: Dump Snippets table",
+            "name": "Python: Dump Tables",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/scripts/dump_dynamodb.py",
+            "program": "${workspaceFolder}/scripts/dump_tables.py",
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: Load dump.json table",
+            "name": "Python: Load Tables",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/scripts/load_dynamodb.py",
+            "program": "${workspaceFolder}/scripts/load_tables.py",
             "console": "integratedTerminal"
         },
         {

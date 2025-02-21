@@ -5,3 +5,4 @@ DbSortDir = str # with values 'ASC', 'DESC'
 DbAttr = str
 DbItem = Dict[DbAttr, Any]
 DbTable = ServiceResource
+DbIndex = Dict[str, DbItem]

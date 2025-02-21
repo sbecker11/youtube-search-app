@@ -107,7 +107,6 @@ class YouTubeStorage:
             raise YouTubeStorageException("output json_file undefined or is not a valid json file")
   
         logger.info(f"Ready to dump all data to json_file: {json_file}")
-                    
         
         """ dump the configs and all items of all tables into a single json_file"""
         alltables = {      
@@ -252,8 +251,6 @@ class YouTubeStorage:
             logger.error("Failed to add request and response to database: %s", str(error))
             raise error
             # Consider implementing retry logic here if it's appropriate for your use case.
-
-    DbIndex = Dict[str, Dict[str, Any]]
 
     def get_item_hashkey(dbItem:DbItem, key_prop_names:List[str]) -> str:
         """ an example get_item_key function that returns a hashkey

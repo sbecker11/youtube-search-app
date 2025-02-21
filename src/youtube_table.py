@@ -79,9 +79,15 @@ class YouTubeTable:
         except Exception as error:
             logger.error(f"Error checking if dynamoDb table exists: {error}")
             raise
+    
+    def get_table_config(self):
+        logger.info("self.table_name: %s", self.table_name)
+        return YouTubeTable.get_dbTable_config(self.table_name)
 
-    def get_dbTable_config(table_name):
-        table_description = YouTubeTable.dynamodb_resource.describe_table(TableName=table_name)
+    @classmethod
+    def get_dbTable_config(cls,table_name):
+        logger.info("table_name: %s", table_name)
+        table_description = YouTubeTable.dynamodb_client.describe_table(TableName=table_name)
         tableNameText = f"\"{table_name}\""
         keySchema = table_description['Table']['KeySchema']
         keySchemaText = DynamoDbJsonUtils.json_dumps(keySchema,indent=4)
@@ -254,20 +260,31 @@ class YouTubeTable:
             logger.error("An error occurred in delete table %s: %s", self.table_name, {error})
             raise
 
+    def scan_items(self, filter_expression: Optional[str] = None, expression_attribute_values: Optional[Dict[str, Any]] = None) -> List[DbItem]:
+        """
+        Scan the dbTable of this YouTubeTable with optional filter expression.
 
-    def scan_dbTable(self, dbTable:DbTable) -> List[DbItem]:
+        :param filter_expression: An optional filter expression.
+        :param expression_attribute_values: An optional dictionary of attribute values.
+        :return: A list of filtered DbItems.
+        """
+        return self.scan_dbTable(self.dbTable, filter_expression, expression_attribute_values)
+
+    def scan_dbTable(self, dbTable:DbTable, filter_expression: Optional[str] = None, expression_attribute_values: Optional[Dict[str, Any]] = None) -> List[DbItem]:
         """
         Scan the entire DbTable.
 
-        :return: A list of all DynamoDbItems in the DbTable.
+        :return: A list of all DynamoDbItems in the DbTable that match the given filter expression and attributes.
         """
         try:
-            response = dbTable.scan()
+            if filter_expression and expression_attribute_values:
+                response = dbTable.scan(filter_expression=filter_expression, expression_attribute_values=expression_attribute_values)
+            else:
+                response = dbTable.scan()
             return response.get('Items', [])
         except boto3.exceptions.Boto3Error as error:
             logger.error("An error occurred in scan_dbTable %s: %s", dbTable.table_name, {error})
             raise
-
 
     @classmethod
     def count_dbTable_items(cls, dbTable:DbTable) -> int:

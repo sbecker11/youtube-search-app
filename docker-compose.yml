@@ -1,25 +1,19 @@
-version: '3.8'
-
 services:
-  youtube_searcher_app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - .:/app
-    ports:
-      - "5004:5004"
-    env_file:
-      - .env
-
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:latest
     ports:
-      - "4566:4566"
+      - "4566:4566"  # LocalStack Edge Proxy
+      - "8080:8080"  # LocalStack Dashboard
     environment:
       - SERVICES=dynamodb
-      - DATA_DIR=/tmp/localstack/data
       - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
     volumes:
-      - "./localstack-data:/tmp/localstack"
+      - /Users/sbecker11/xyz/tmp/localstack:/tmp/localstack
+      - /Users/sbecker11/xyz/tmp/.cache:/.cache
+      - /var/run/docker.sock:/var/run/docker.sock
+    user: "502:20"
 
+
+# docker compose up localstack
+# docker compose logs localstack

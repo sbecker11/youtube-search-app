@@ -12,9 +12,10 @@ services:
       - LOCALSTACK_CACHE_DIR=/.cache  # This might need adjustment based on LocalStack's configuration
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /Users/sbecker11/localstack_tmp:/tmp/localstack    # chown 205:20 ~/localstack_tmp
-      - /Users/sbecker11/localstack_cache:/.cache     # ran sudo chown 205:20 ~/localstack_cache
-      - /Users/sbecker11/dynamodb_data:/dynamodb_data      # chown 205:20 ~/dhynamodb_data
+      - /Users/sbecker11/xyz/tmp/dynamodb_data:/tmp/dynamodb_data   # chown 502:20 ~/dhynamodb_data
+      - /Users/sbecker11/xyz/tmp/localstack:/tmp/localstack    # chown 502:20 ~/localstack_tmp
+      - /Users/sbecker11/xyz/tmp/localstack/data:/tmp/localstack/data    # chown 502:20 ~/localstack_tmp
+      - /Users/sbecker11/xyz/.cache:/.cache     # ran sudo chown 502:20 ~/localstack_cache
     user: 502:20  # same as "sbecker11:staff"
 
 
