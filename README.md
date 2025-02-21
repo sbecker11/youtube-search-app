@@ -75,7 +75,6 @@ YOUTUBE_API_KEY=*****
 AWS_ACCESS_KEY_ID=*****
 AWS_SECRET_ACCESS_KEY_ID=*****
 AWS_DEFAULT_REGION=us-west-2
-PYTHONPATH=src:tests
 DYNAMODB_URL=http://localstack:4566
 RESPONSES_CONFIG_PATH=./data/responses_table_config.json
 SNIPPETS_CONFIG_PATH=./data/snippets_table_config.json
@@ -396,3 +395,144 @@ docker exec -it $APP_CONTAINER_ID python run_scanner.py
 Example YouTubeMetadata API requests
 list videos relating to "coding tutorials"
 https://www.googleapis.com/youtube/v3/search?part=snippet&q=coding+tutorials&key=YOUR_API_KEY
+
+
+
+finally got dynamodb saving data to local disk:
+
+steps 1. create a docker-config.yml that only lists localstack with dynamodb service
+
+```yml
+services:
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"  # LocalStack Edge Proxy
+      - "8080:8080"  # LocalStack Dashboard
+    environment:
+      - SERVICES=dynamodb
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+    volumes:
+      - /Users/sbecker11/xyz/tmp/localstack:/tmp/localstack
+      - /Users/sbecker11/xyz/tmp/.cache:/.cache
+      - /var/run/docker.sock:/var/run/docker.sock
+    user: "502:20"
+
+
+# docker compose up localstack
+# docker compose logs localstack
+```
+
+2. on local machine create
+/Users/sbecker11/xyz/tmp/localstack
+/Users/sbecker11/xyz/tmp/.cache:
+
+chown -R 502:20 /Users/sbecker11/xyz/tmp
+chmod -R 770    /Users/sbecker11/xyz/tmp
+
+in docker desktop > settings > resources > file sharing
+enter these folders manually (cut/paste)
+/Users/sbecker11/xyz/tmp/localstack
+/Users/sbecker11/xyz/tmp/.cache:
+
+hit the apply and restart button
+
+wait a few seconds then shutdown docker desktop
+then start it up again and verify that the two
+file sharing directories are still present in docker desktop
+
+then go into the directory that has the docker-compose.yml file
+and in a dedicated terminal run 
+```bash
+docker compose up localstack
+```
+or add -d to run it in detached mode
+
+verify that dynamodb is responsive by running
+
+```bash
+aws --endpoint-url=http://localhost:4566 dynamodb list-tables 
+```
+and it lists zero tables
+
+verify that localstack is listening on port 8080
+```bash
+open http://localhost:8080
+```
+see webpage message "It works!"
+
+now let's create a table:
+```bash
+> aws --endpoint-url=http://localhost:4566 dynamodb create-table \
+    --table-name TestTable \
+    --attribute-definitions AttributeName=Id,AttributeType=S \
+    --key-schema AttributeName=Id,KeyType=HASH \
+    --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
+```
+and more aws commands
+```bash
+> aws --endpoint-url=http://localhost:4566 dynamodb put-item \
+    --table-name TestTable \
+    --item '{"Id": {"S": "2"}, "Name": {"S": "Another Item"}, "Description": {"S": "This is a test"}}'
+```
+```bash
+> aws --endpoint-url=http://localhost:4566 dynamodb scan \
+    --table-name TestTable
+```
+```bash
+> aws --endpoint-url=http://localhost:4566 dynamodb update-item \
+    --table-name TestTable \
+    --key '{"Id": {"S": "1"}}' \
+    --update-expression "SET #n = :newname" \
+    --expression-attribute-names '{"#n":"Name"}' \
+    --expression-attribute-values '{":newname":{"S":"Updated Name"}}'
+```
+```bash
+> aws --endpoint-url=http://localhost:4566 dynamodb scan \
+    --table-name TestTable
+```
+```bash
+> aws --endpoint-url=http://localhost:4566 dynamodb delete-item \
+    --table-name TestTable \
+    --key '{"Id": {"S": "2"}}'
+```
+```bash
+> aws --endpoint-url=http://localhost:4566 dynamodb scan \
+    --table-name TestTable
+```
+```bash
+aws --endpoint-url=http://localhost:4566 dynamodb delete-table \
+    --table-name TestTable
+```
+
+verify data is being saved by checking 
+
+```bash
+> ll ~/xyz/tmp/localstack/state/dynamodb/
+total 64
+drwxr-xr-x  4 sbecker11  staff    128 Feb 16 23:33 ./
+drwxr-xr-x  3 sbecker11  staff     96 Feb 16 23:27 ../
+-rw-r--r--  1 sbecker11  staff  13312 Feb 16 23:27 000000000000_us-east-1.db
+-rw-r--r--  1 sbecker11  staff  16384 Feb 16 23:33 000000000000uswest2_us-west-2.db
+```
+
+also see that the container is up and running using
+```bash
+> docker ps -a
+CONTAINER ID   IMAGE                          COMMAND                  CREATED          STATUS                    PORTS                                                                     NAMES
+7afc6c907786   localstack/localstack:latest   "docker-entrypoint.sh"   48 minutes ago   Up 44 minutes (healthy)   4510-4559/tcp, 0.0.0.0:4566->4566/tcp, 5678/tcp, 0.0.0.0:8080->8080/tcp   youtube-search-app-localstack-1
+```
+
+Now turn off docker desktop 
+
+and then start it up again
+
+find the container for youtube-search-app is still there
+click to start it.
+and run aws queries against it:
+
+```bash
+> aws --endpoint-url=http://localhost:4566 dynamodb list-tables
+```
+and the table is gone!

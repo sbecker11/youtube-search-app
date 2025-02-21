@@ -87,22 +87,16 @@ class YouTubeTable:
     @classmethod
     def get_dbTable_config(cls,table_name):
         logger.info("table_name: %s", table_name)
+        config_prop_names = ['TableName', 'KeySchema', 'AttributeDefinitions', 'ProvisionedThroughput']
         table_description = YouTubeTable.dynamodb_client.describe_table(TableName=table_name)
-        tableNameText = f"\"{table_name}\""
-        keySchema = table_description['Table']['KeySchema']
-        keySchemaText = DynamoDbJsonUtils.json_dumps(keySchema,indent=4)
-        attrDefs = table_description['Table']['AttributeDefinitions']
-        attrDefsText = DynamoDbJsonUtils.json_dumps(attrDefs,indent=4)
-        provThruPut = table_description['Table']['ProvisionedThroughput']
-        provThruPutText = DynamoDbJsonUtils.json_dumps(provThruPut,indent=4)
-
+        if not table_description:
+            raise YouTubeTableException(f"Table {table_name} does not exist.")
         configs = []
-        configs.append(f"   \"TableName\": {tableNameText}")
-        configs.append(f"   \"KeySchema\": {keySchemaText}")
-        configs.append(f"   \"AttributeDefinitions\": {attrDefsText}")
-        configs.append(f"   \"ProvisionedThroughput\": {provThruPutText}")
+        for prop_name in config_prop_names:
+            prop_value = table_description['Table'][prop_name]
+            prop_text = DynamoDbJsonUtils.json_dumps(prop_value,indent=4)
+            configs.append(f" \"{prop_name}\": {prop_text}")
         config_text = "{\n" + ",\n".join(configs) + "\n}"
-
         dbTable_config = json.loads(config_text)
         return dbTable_config
 
@@ -326,7 +320,7 @@ class YouTubeTable:
         """ convenience function """
 
     @classmethod
-    def put_dbTable_items(cls, dbTable: DbTable, items: List[DbItem], idempotent: bool = True):
+    def put_dbTable_items(cls, dbTable:DbTable, items:List[DbItem], idempotent:bool=False) -> List[DbItem]:
         """
         If the `idempotent` flag is set to True, the method ensures that items are only added
         if they do not already exist in the table.
@@ -334,6 +328,7 @@ class YouTubeTable:
             dbTable: DbTable: used to create a batch_writer
             dbItems: List[DbItem] : the items to be stored to the table
             idempotent (bool): If True, use conditional writes to ensure items do not already exist.
+            if False, use batch_writer for bulk writes.
         Raises:
             ClientError: If there is an error during any single put item, it will be reported
             but the function will continue and attempt to store the next item.
@@ -346,54 +341,45 @@ class YouTubeTable:
         logger.info(f"item.type:{type(items)} item.value:{items}")
         logger.info(f"idempotent.type:{type(idempotent)} idempotent.value:{idempotent}")
 
-        num_items = len(items)
-        num_failed_items = 0
         successful_writes = []
-        with dbTable.batch_writer() as dbBatch:
-            for index, dbItem in enumerate(items):
-                if DynamoDbValidators.is_valid_dbItem(dbItem):
+        failed_writes = []
+        
+        if idempotent:
+            # Handle idempotent writes with individual put_item calls
+            for dbItem in items:
+                if DynamoDbValidators.is_valid_dbItem(dbItem):  # Assuming this is your validator
                     try:
-                        if idempotent:
-                            # Use conditional write to ensure dbItem does not exist
-                            dbBatch.put_item(
-                                Item=dbItem,
-                                ConditionExpression='attribute_not_exists(#pk)',
-                                ExpressionAttributeNames={'#pk': 'id'}  # Replace 'id' with your partition key
-                            )
-                            successful_writes.append(dbItem)
+                        # Use regular put_item with ConditionExpression for idempotency
+                        dbTable.put_item(
+                            Item=dbItem,
+                            ConditionExpression='attribute_not_exists(#pk)',
+                            ExpressionAttributeNames={'#pk': 'id'}  # Replace 'id' with your partition key
+                        )
+                        successful_writes.append(dbItem)
+                    except ClientError as e:
+                        if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                            logger.info(f"Item with id {dbItem.get('id')} already exists, skipping.")
                         else:
-                            # Directly put the dbItem without checking for existence
+                            logger.error(f"Error writing item {dbItem}: {e}")
+                            failed_writes.append(dbItem)
+        else:
+            # Use batch_writer for non-idempotent bulk writes
+            with dbTable.batch_writer() as dbBatch:
+                for dbItem in items:
+                    if DynamoDbValidators.is_valid_dbItem(dbItem):
+                        try:
                             dbBatch.put_item(Item=dbItem)
                             successful_writes.append(dbItem)
+                        except Exception as e:
+                            logger.error(f"Error writing item {dbItem}: {e}")
+                            failed_writes.append(dbItem)
+        num_items_total = len(items)
+        num_items_successful = len(successful_writes)
+        num_items_failed = len(failed_writes)
+        logger.info("num items total: %d num items successful: %d num items failed:%d", num_items_total, num_items_successful, num_items_failed)
+        return successful_writes
 
-                    except ValueError as error:
-                        logger.error("ValueError: %s", error)
-                    except ClientError as error:
-                        num_failed_items += 1
-                        error_code = error.response['Error']['Code']
-                        error_message = error.response['Error']['Message']
 
-                        # Log detailed error information
-                        logging.error(
-                            f"Error processing item at index {index}. Error Code: {error_code}\n"
-                            f"Error Message: {error_message}\n"
-                            f"Item: {dbItem}\n"
-                            f"Full Error: {error}"
-                        )
-                      
-                        if error.response['Error']['Code'] == 'ConditionalCheckFailedException':
-                            logger.error("The condition for the put operation was not met.")
-                        elif error.response['Error']['Code'] == 'ProvisionedThroughputExceededException':
-                            logger.error("Exceeded provisioned throughput.")
-                        elif error.response['Error']['Code'] == 'ResourceNotFoundException':
-                            logger.error("The table was not found.")
-                        else:
-                            logger.error(f"Unexpected error: {error}")
-                else:
-                    logger.error("Invalid dbItem: %s", dbItem)
-                    num_failed_items += 1
-
-        logger.info("num items total: %d num items saved: %d num items failed:%d", num_items, num_items - num_failed_items, num_failed_items)
 
 
 if __name__ == "__main__":

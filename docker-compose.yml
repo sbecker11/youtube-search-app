@@ -7,13 +7,20 @@ services:
     environment:
       - SERVICES=dynamodb
       - DEBUG=1
-      - DATA_DIR=/tmp/localstack/data
+      - PERSISTENCE=1
     volumes:
+      - /Users/sbecker11/xyz/tmp/data:/var/lib/localstack
       - /Users/sbecker11/xyz/tmp/localstack:/tmp/localstack
       - /Users/sbecker11/xyz/tmp/.cache:/.cache
       - /var/run/docker.sock:/var/run/docker.sock
+
     user: "502:20"
+    group_add:
+      - dialout
+      - staff
 
 
 # docker compose up localstack
 # docker compose logs localstack
+# docker compose exec localstack bash
+# aws dynamodb list-tables --endpoint-url=http://localhost:4566

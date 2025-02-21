@@ -1,29 +1,15 @@
 import boto3
 import json
-from json import JSONDecodeError
 from dynamodb_utils.json_utils import DynamoDbJsonUtils
+from youtube_table import YouTubeTable
+import os
+from dotenv import load_dotenv
 
-dynamodb = boto3.client('dynamodb', endpoint_url='http://localhost:4566', region_name='us-west-2')
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
 
-def get_table_config(table_name):
-    table_description = dynamodb.describe_table(TableName=table_name)
-    tableNameText = f"\"{table_name}\""
-    keySchema = table_description['Table']['KeySchema']
-    keySchemaText = DynamoDbJsonUtils.json_dumps(keySchema,indent=4)
-    attrDefs = table_description['Table']['AttributeDefinitions']
-    attrDefsText = DynamoDbJsonUtils.json_dumps(attrDefs,indent=4)
-    provThruPut = table_description['Table']['ProvisionedThroughput']
-    provThruPutText = DynamoDbJsonUtils.json_dumps(provThruPut,indent=4)
-
-    configs = []
-    configs.append(f"   \"TableName\": {tableNameText}")
-    configs.append(f"   \"KeySchema\": {keySchemaText}")
-    configs.append(f"   \"AttributeDefinitions\": {attrDefsText}")
-    configs.append(f"   \"ProvisionedThroughput\": {provThruPutText}")
-    config_text = "{\n" + ",\n".join(configs) + "\n}"
-
-    table_config = json.loads(config_text)
-    return table_config
+DYNAMODB_URL = os.getenv("DYNAMODB_URL")
+AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION")
+dynamodb = boto3.client('dynamodb', endpoint_url=DYNAMODB_URL, region_name=AWS_DEFAULT_REGION)
 
 def count_tables():
     response = dynamodb.list_tables()
@@ -36,7 +22,7 @@ def count_tables():
         print(f"table: {table_name}")
         print(f"item_count: {item_count}")
 
-        table_config = get_table_config(table_name)
+        table_config = YouTubeTable.get_dbTable_config(table_name=table_name)
         print(f"table_config:\n{json.dumps(table_config, indent=4)}")
 
 if __name__ == "__main__":

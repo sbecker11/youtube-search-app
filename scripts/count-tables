@@ -1,13 +1,20 @@
 #!/bin/bash
 
-echo
+source scripts/activate
+if [ "$?" -ne "0" ]; then
+  echo "failed to source scripts/activate"
+  exit 1
+else
+  echo "sourced scripts/activate"
+fi
+
 echo "list tables using aws:"
-aws dynamodb list-tables --endpoint-url http://localhost:4566 --region us-west-2 | jq '.TableNames | length'
-
-(
-    echo "sourcing scripts/activate
-    source scripts/activate
-
-    echo "calling scripts/count_tables.py
-    python scripts/count_tables.py
-)
+cmd="aws dynamodb list-tables --endpoint-url ${DYNAMODB_URL} --region ${AWS_DEFAULT_REGION} | jq '.TableNames | length'"
+echo "cmd: $cmd"
+eval $cmd
+echo
+echo "list tables using python:"
+echo "calling scripts/count_tables.py"
+cmd="python scripts/count_tables.py"
+echo "cmd: $cmd"
+eval $cmd

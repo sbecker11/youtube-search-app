@@ -1,0 +1,21 @@
+# test to see if table exists
+aws --endpoint-url=${DYNAMODB_URL} dynamodb describe-table \
+    --table-name TestTable 2>&1 | grep -q "ResourceNotFoundException"
+
+if [ $? -eq 0 ]; then
+    # return success code 0 if table already deleted
+    echo "TestTable not found"
+    exit 0
+fi
+
+aws --endpoint-url=${DYNAMODB_URL} dynamodb delete-table \
+    --table-name TestTable 2>&1 | grep -q "ResourceNotFoundException"
+
+aws --endpoint-url=${DYNAMODB_URL} dynamodb describe-table \
+    --table-name TestTable 2>&1 | grep -q "ResourceNotFoundException"
+
+if [ $? -eq 0 ]; then
+    # return success code 0 if table already deleted
+    echo "TestTable successfully deleted"
+    exit 0
+fi

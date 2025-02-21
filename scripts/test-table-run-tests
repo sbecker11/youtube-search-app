@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# Source the activate script to set up the environment
+source scripts/activate
+if [ "$?" -ne "0" ]; then
+  echo "failed to source scripts/activate"
+  exit 1
+else
+  echo "sourced scripts/activate"
+fi
+# This script creates a new TestTable in the database
+scripts/test-table-create
+if [ "$?" -ne "0" ]; then
+  echo "failed to create TestTable"
+  exit 1
+else
+  echo "created TestTable"
+fi
+
+# Scan the TestTable and get the number of items
+# scripts/test-table-scan scans the TestTable and returns the number of items
+num_items=$(scripts/test-table-scan)
+if [ "$num_items" -ne "0" ]; then
+  echo "TestTable is not empty"
+  exit 1
+else
+  echo "TestTable is empty"
+fi
+
+# This script puts an item into the TestTable
+scripts/test-table-put-item
+if [ "$?" -ne "0" ]; then
+  echo "failed to put item into TestTable"
+  exit 1
+else
+  echo "put item into TestTable"
+fi
+
+# This script puts an item into the TestTable
+scripts/test-table-put-item
+
+num_items=$(scripts/test-table-scan)
+if [ "$?" -ne "0" ]; then
+  echo "failed to scan TestTable"
+  exit 1
+else
+  echo "scanned TestTable"
+fi
+
+if [ "$num_items" -ne "1" ]; then
+  echo "TestTable should have one item"
+  exit 1
+else
+  echo "TestTable has one item"
+fi
+
+scripts/test-table-update-item
+if [ "$?" -ne "0" ]; then
+  echo "failed to update item in TestTable"
+  exit 1
+else
+  echo "updated item in TestTable"
+fi
+
+num_items=$(scripts/test-table-scan)
+if [ "$?" -ne "0" ]; then
+  echo "failed to scan TestTable"
+  exit 1
+else
+  echo "scanned TestTable"
+fi
+
+if [ "$num_items" -ne "1" ]; then
+  echo "TestTable should have one item"
+  exit 1
+else
+  echo "TestTable has one item"
+fi
+# This script deletes an item from the TestTable
+scripts/test-table-delete-item
+if [ "$?" -ne "0" ]; then
+  echo "failed to delete item in TestTable"
+  exit 1
+else
+  echo "deleted item in TestTable"
+fi
+
+num_items=$(scripts/test-table-scan)
+if [ "$?" -ne "0" ]; then
+  echo "failed to scan TestTable"
+  exit 1
+else
+  echo "scanned TestTable"
+fi
+
+if [ "$num_items" -ne "0" ]; then
+  echo "TestTable should have zero items"
+  exit 1
+else
+  echo "TestTable has zero items"
+fi
+
+scripts/test-table-delete
+if [ "$?" -ne "0" ]; then
+  echo "failed to delete TestTable"
+  exit 1
+else
+  echo "deleted TestTable"
+fi
+
+# Verify that TestTable has been completely deleted
+# by attempting to delete it again
+scripts/test-table-delete
+if [ "$?" -ne "0" ]; then
+  echo "failed to delete TestTable. given exit code: $?"
+  echo "TestTable may not have been deleted"
+  exit 1
+else
+  echo "deleted TestTable"
+fi
+

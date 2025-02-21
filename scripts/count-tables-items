@@ -1,0 +1,14 @@
+num_items=$(aws --endpoint-url=${DYNAMODB_URL} dynamodb scan \
+    --table-name Resources \
+    --query "Count" \
+    --output text)
+# Print the number of items
+echo "Resources $num_items"
+
+# Count the number of items in the table
+num_items=$(aws --endpoint-url=${DYNAMODB_URL} dynamodb scan \
+    --table-name Snippets \
+    --query "Count" \
+    --output text)
+# Print the number of items
+echo "Snippets $num_items"

@@ -1,0 +1,6 @@
+aws --endpoint-url=${DYNAMODB_URL} dynamodb update-item \
+    --table-name TestTable \
+    --key '{"Id": {"S": "2"}}' \
+    --update-expression "SET #n = :newname" \
+    --expression-attribute-names '{"#n":"Name"}' \
+    --expression-attribute-values '{":newname":{"S":"Updated Name"}}'

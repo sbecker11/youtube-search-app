@@ -2,4 +2,4 @@
 
 python src/query_scanner.py
 
-aws dynamodb list-tables --endpoint-url http://localhost:4566 --region us-west-2 | jq '.TableNames | length'
+aws dynamodb list-tables --endpoint-url ${DYNAMODB_URL} --region ${AWS_DEFAULT_REGION} | jq '.TableNames | length'

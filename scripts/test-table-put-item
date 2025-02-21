@@ -1,0 +1,4 @@
+aws --endpoint-url=${DYNAMODB_URL} dynamodb put-item \
+    --table-name TestTable \
+    --item '{"Id": {"S": "2"}, "Name": {"S": "Another Item"}, "Description": {"S": "This is a test"}}'
+

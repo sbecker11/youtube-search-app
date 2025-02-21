@@ -10,42 +10,59 @@
 # )
 #
 
-# Exit immediately if a command exits with a non-zero status
-# set -e
+prompt() {
+    echo -n "$1 "
+    read -n 1
+    echo
+}
 
-# as defined in the .env file
-export AWS_DEFAULT_REGION=us-west-2
+# Extract AWS_DEFAULT_REGION from the .env file
+if [ -f ".env" ]; then
+  echo "Loading environment variables from .env file"
+  set -a
+  source .env
+  set +a
+else
+  echo ".env file not found. Please create a .env file with AWS_DEFAULT_REGION."
+  exit 1
+fi
+export AWS_DEFAULT_REGION=$(grep -E '^AWS_DEFAULT_REGION=' .env | cut -d '=' -f2)
+echo "AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}"
 
-# Activate the existing virtual environment
-source venv/bin/activate
+ROOT_DIR=$(git rev-parse --show-toplevel)
+if [ -z "$ROOT_DIR" ]; then
+  echo "Could not determine the root directory of the git repository."
+  exit 1
+fi
+PYTHONPATH=${ROOT_DIR}/src:${ROOT_DIR}/tests:${PYTHONPATH}
+export PYTHONPATH=$(echo "$PYTHONPATH" | awk -v RS=: -v ORS=: '!a[$1]++' | sed 's/:$//')
 
-# Add project-root/src to PYTHONPATH if it's not already present
-if [[ ":$PYTHONPATH:" != *":$(pwd)/src:"* ]]; then
-    export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+# Check if venv folder exists, if not call venv-make
+if [ ! -d "venv" ]; then
+  echo "venv folder does not exist. Please run 'source ~/bin/venv-make' from the root folder."
+  exit 1
 fi
 
-# Remove duplicate entries from PYTHONPATH
-export PYTHONPATH=$(echo "$PYTHONPATH" | awk -v RS=: -v ORS=: '!a[$1]++')
-
-echo "final PYTHONPATH $PYTHONPATH"
-
-# Install dependencies
-# pip install -r requirements.txt
+# Check if the virtual environment is activated
+if [ -z "$VIRTUAL_ENV" ]; then
+  echo "Virtual environment is not activated. Please run 'source ~/bin/venv-activate' from the root folder."
+  exit 1
+fi
 
 # verify dockerdesktop is running
 docker info
 if [ "$?" -ne "0" ]; then
   echo "DockerDesktop is not accessible"
   exit 1
-else:
+else
   echo "verified DockerDesktop is accessible"
 fi
 
 # verify dynamodb is running
-export DYNAMODB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4566)
+export DYNAMODB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${DYNAMODB_URL})
 if [ "$DYNAMODB_STATUS" -ne 200 ]; then
-  echo "DynamoDb is not running at http://localhost:4566"
+  echo "DynamoDb is not running at ${DYNAMODB_URL}"
   exit 1
 else
-  echo "verified dynamodb is accessible at http://localhost:4566"
+  echo "verified dynamodb is accessible at ${DYNAMODB_URL}"
 fi

@@ -1,0 +1,3 @@
+aws --endpoint-url=${DYNAMODB_URL} dynamodb delete-item \
+    --table-name TestTable \
+    --key '{"Id": {"S": "2"}}'

@@ -9,6 +9,7 @@ from typing import Dict
 import croniter
 from dotenv import load_dotenv
 from query_engine import QueryEngine, QueryEngineException
+from dynamodb_utils.random_topics import fetch_random_trending_topics
 
 from dynamodb_utils.json_utils import DynamoDbJsonUtils
 # global app run mode
@@ -22,6 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 max_queries_per_scan = int(os.getenv("MAX_QUERIES_PER_SCAN", "10"))
+scanner_use_random_trending_topics = os.getenv("SCANNER_USE_RANDOM_TRENDING_TOPICS", "false").lower() == "true"
 
 # set this to true to skip query_engine setup during ininitialization
 
@@ -114,8 +116,19 @@ class QueryScanner:
         return self.config['cron-string']
 
     def get_queries(self):
-        """ return the queries list from the config """
-        return self.config['queries']
+        """ return a randmo set of topics or the queries list from the config """
+        if scanner_use_random_trending_topics:
+            random_topics = fetch_random_trending_topics()
+            if len(random_topics) > max_queries_per_scan:
+                random_topics = random_topics[:max_queries_per_scan]
+            logger.info("using random topics %s", random_topics)
+            return random_topics
+        
+        queries = self.config['queries']
+        if len(queries) > max_queries_per_scan:
+            queries = queries[:max_queries_per_scan]
+        logger.info("returning queries from config: %s", queries)
+        return queries
 
     def run_once(self, listener=None):
         """ Execute run the queries search one time
