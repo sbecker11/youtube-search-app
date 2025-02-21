@@ -1,7 +1,7 @@
 import boto3
 import json
 from dynamodb_utils.json_utils import DynamoDbJsonUtils
-from youtube_table import YouTubeTable
+from youtube.youtube_table import YouTubeTable
 import os
 from dotenv import load_dotenv
 

@@ -1,5 +1,5 @@
 #!/bin/bash
 
-python src/query_scanner.py
+python src/youtube/query_scanner.py
 
 aws dynamodb list-tables --endpoint-url ${DYNAMODB_URL} --region ${AWS_DEFAULT_REGION} | jq '.TableNames | length'

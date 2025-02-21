@@ -155,7 +155,6 @@ with a detailed Explanation:
    - Tells DynamoDB to return only the attributes specified in the projection expression, rather than the entire item.
    - This can significantly reduce the amount of data transferred, improving performance.
 
-
 aws dynamodb put-item --table-name MyTable \
     --item '{"id": {"S": "123"}, "name": {"S": "Test Item"}}' \
     --endpoint-url http://localhost:4566 --region us-west-2

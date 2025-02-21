@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from youtube_storage import YouTubeStorage
+from youtube.youtube_storage import YouTubeStorage
 
 # Load .env file
 load_dotenv()

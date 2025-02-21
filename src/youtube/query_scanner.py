@@ -8,7 +8,7 @@ from typing import Dict
 
 import croniter
 from dotenv import load_dotenv
-from query_engine import QueryEngine, QueryEngineException
+from youtube.query_engine import QueryEngine, QueryEngineException
 from dynamodb_utils.random_topics import fetch_random_trending_topics
 
 from dynamodb_utils.json_utils import DynamoDbJsonUtils

@@ -8,9 +8,11 @@ import uvicorn
 from fastapi import FastAPI
 from openapi_spec_validator import validate_spec
 
-from query_scanner import QueryScanner
-from youtube_storage import YouTubeStorage
+from youtube.query_scanner import QueryScanner
+from youtube.youtube_storage import YouTubeStorage
 from dynamodb_utils.json_utils import DynamoDbJsonUtils
+from dynamodb_utils.dbtypes import *
+
 # global app run mode
 APP_RUN_MODES = DynamoDbJsonUtils.load_json_file("APP_RUN_MODES.json")
 
@@ -80,21 +82,42 @@ class YouTubeSearcherApp:
         def favicon():
             return {"message": "Favicon not found"}
 
-        def list_querys():
-            """ scan all response items to create a list of all unique query values """
-            return self.storage.find_all_props('request.q')
 
-        def list_responses(query: str):
-            """ return a list of responses from requests with query """
-            return self.storage.find_response_ids_by_query(query)
+        # List all queries
+        @self.fast_api_app.get("/queries", response_model=List[str])
+        def list_queries():
+            return self.list_queries()
 
-        def list_snippets(etag: str):
-            """ return the list of snipped associated with the given etag """
-            return self.storage.find_snippets_by_response_id(etag)
+        # List all response_ids for a given query
+        @self.fast_api_app.get("/responses/{query}", response_model=List[str])
+        def list_response_ids_with_query(query: str):
+            return self.list_response_ids_with_query(query)
+    
 
-        self.fast_api_app.get("/queries", response_model=List[dict])(list_querys)
-        self.fast_api_app.get("/responses/{query}", response_model=List[dict])(list_responses)
-        self.fast_api_app.get("/snippets/{etag}", response_model=List[dict])(list_snippets)
+        @self.fast_api_app.get("/snippets/{responseId}", response_model=List[DbItem])
+        def list_snippets_with_response_id(responseId: str):
+            return self.list_snippets_with_response_id(responseId)
+        
+    
+    def list_queries(self) -> List[str]:
+        """ scan all response items to create a list of all unique query values """
+        responses = self.storage.scan_table_items("Responses")
+        print(f"respones[0]: {DynamoDbJsonUtils.json_dumps(responses[0], indent=4)}")
+        distinct_query_values = list(set([response['queryDetails.q'] for response in responses]))
+        return distinct_query_values
+
+    def list_response_ids_with_query(self, query_value: str) -> List[str]:
+        """ return a list of response_ids from requests with the given query_value """
+        responses = self.storage.scan_table_items("Responses")
+        distinct_response_ids = list(set([response['response_id'] for response in responses if response['queryDetails.q'] == query_value]))
+        return distinct_response_ids
+
+    def list_snippets_with_response_id(self, response_id: str) -> List[DbItem]:
+        """ return the list of snipped associated with the given response_id """
+        snippets = self.storage.scan_table_items("Snippets")
+        snippets_with_response_id = [snippet for snippet in snippets if snippet["response_id"] == response_id]
+        print(f"snippets_with_response_id[0]: {DynamoDbJsonUtils.json_dumps(snippets_with_response_id[0], indent=4)}")
+        return snippets_with_response_id
 
     def verify_navigation_requests(self) -> bool:
         """ Return True if all navigation requires used by FastAPI routes return values
@@ -135,9 +158,6 @@ class YouTubeSearcherApp:
                 logger.info("open FastAPI at http:/localhost:8000")
 
             searcher.scanner.run_once( doit )
-
-
-
 
 
 if __name__ == "__main__":

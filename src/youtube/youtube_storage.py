@@ -8,7 +8,7 @@ import boto3
 from random import random, choice
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
-from youtube_table import YouTubeTable
+from youtube.youtube_table import YouTubeTable
 from dynamodb_utils.json_utils import DynamoDbJsonUtils
 from dynamodb_utils.dict_utils import DynamoDbDictUtils
 from dynamodb_utils.dbtypes import DbTable, DbItem, DbIndex
@@ -19,7 +19,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class YouTubeStoragepropException(Exception):
+class YouTubeStorageattrException(Exception):
     pass
 class YouTubeStorageException(Exception):
     pass
@@ -90,6 +90,19 @@ class YouTubeStorage:
     def get_tables(self) -> List[YouTubeTable]:
         return self.tables
 
+    def get_table_by_name(self, table_name:str) -> YouTubeTable:
+        """ returns the YouTubeTable with the given name """
+        for table in self.get_tables():
+            if table.get_table_name() == table_name:
+                return table
+        
+    def scan_table_items(self, table_name:str) -> List[DbItem]:
+        """ returns a list of all items in the given table """
+        for table in self.get_tables():
+            if table.get_table_name() == table_name:
+                return table.scan_items()
+        raise YouTubeStorageException(f"Table {table_name} not found.")
+
     def count_num_dbTables(self) -> int:
         response = self.dynamodb_client.list_tables()
         table_count = len(response['TableNames'])
@@ -159,8 +172,8 @@ class YouTubeStorage:
 
         logger.info("all tables loaded successfully!")
 
-    def preprocess_response_row(self, prop_request: Dict[str, any], query_response: Dict[str, str]) -> Dict[str, any]:
-        """ This function takes a prop_request object and its query_response object to create a flat dict of
+    def preprocess_response_row(self, attr_request: Dict[str, any], query_response: Dict[str, str]) -> Dict[str, any]:
+        """ This function takes a attr_request object and its query_response object to create a flat dict of
             attribute/value pairs. The attribute/value pairs of this dict are preprocessed and will then be
             stored as a row of attributes in the "Reponses" dynamodb table. Each row having a unique etag """
         response_id = str(uuid.uuid4())  # Generate a unique primary key
@@ -175,14 +188,14 @@ class YouTubeStorage:
                 "totalResults": query_response.get('pageInfo', {}).get('totalResults', 0),
                 "resultsPerPage": query_response.get('pageInfo', {}).get('resultsPerPage', 0)
             },
-            "requestSubmittedAt": prop_request.get('requestSubmittedAt', datetime.utcnow().isoformat()),
+            "requestSubmittedAt": attr_request.get('requestSubmittedAt', datetime.utcnow().isoformat()),
             "responseReceivedAt": datetime.utcnow().isoformat(),
             "queryDetails": {
-                "part": prop_request.get('part', ''),
-                "q": prop_request.get('q', ''),
-                "type": prop_request.get('type', ''),
-                "maxResults": prop_request.get('maxResults', ''),
-                "query": prop_request.get('query', '')
+                "part": attr_request.get('part', ''),
+                "q": attr_request.get('q', ''),
+                "type": attr_request.get('type', ''),
+                "maxResults": attr_request.get('maxResults', ''),
+                "query": attr_request.get('query', '')
             }
         }
         logger.info("Generated response row with response_id: %s", response_id)
@@ -250,22 +263,28 @@ class YouTubeStorage:
         except boto3.exceptions.Boto3Error as error:
             logger.error("Failed to add request and response to database: %s", str(error))
             raise error
-            # Consider implementing retry logic here if it's appropriate for your use case.
+            # Consider implementing retry logic here if it's apattrriate for your use case.
 
-    def get_item_hashkey(dbItem:DbItem, key_prop_names:List[str]) -> str:
+    ##################################################################################
+    # Query functions for the YouTubeStorage class on YouTubeTables
+
+    def get_item_hashkey(dbItem:DbItem, key_attr_names:List[str]) -> str:
         """ an example get_item_key function that returns a hashkey
-            from a composite list of prop values
+            from a composite list of attr values
         """
         parts = []
-        for key_prop_name in key_prop_names:
-            key_prop_value = dbItem.get(key_prop_name)
-            if key_prop_value:
-                part = f"{key_prop_name}:{key_prop_value}"
+        for key_attr_name in key_attr_names:
+            key_attr_value = dbItem.get(key_attr_name)
+            if key_attr_value:
+                part = f"{key_attr_name}:{key_attr_value}"
                 parts.append(part)
         composite = "-".join(parts)
         hash_int = hash(composite)
         hash_key = str(hash_int)
         return hash_key
+    
+    def get_item_attribute(dbItem:DbItem, attribute:str) -> str:
+        return dbItem.get(attribute)
 
     def create_key_indexed_items(self, dbItems: List[DbItem], get_item_key) -> DbIndex:
         """ use a get_item_key function to create an index of the given dbItems.
@@ -291,17 +310,30 @@ class YouTubeStorage:
                 key_indexed_items[key] = dbItem
         return key_indexed_items
 
-    def create_etag_indexed_items(self, dbItems:List[DbItem]) -> DbIndex:
-        def get_item_key_func(dbItem): return dbItem['etag']
+    def create_attribute_indexed_items(self, dbItems:List[DbItem], attribute:str) -> DbIndex:
+        def get_item_key_func(dbItem): return dbItem[attribute]
         return self.create_key_indexed_items(dbItems, get_item_key_func)
 
     def create_key_sorted_items(self, index:DbIndex, get_item_key_func) -> List[DbItem]:
         """Sort the index using get_item_key(item) for each item."""
         key_sorted_items = sorted(index.values(), key=lambda x: get_item_key_func(x))
         return key_sorted_items
+    
+    ###########################################################################3
+    # Non-indexed query functions
+    
+    def find_items_by_attribute(self, dbTable:DbTable, attribute_index: DbIndex, attribute: str) -> List[DbItem]:
+        """Find a dbItem by its attribute."""
+        if attribute_index:
+            return attribute_index.get(attribute)
+        elif dbTable:
+            return dbTable.find_items_by_attribute(attribute)
+        else:
+            raise YouTubeStorageException("No attribute index or dbTable provided.")
+
 
     # def create_publishedAt_sorted_items(self, index:DbIndex) -> List[DbItem]:
-    #     """Sort the index by the given prop_name."""
+    #     """Sort the index by the given attr_name."""
     #     get_item_key = item["snippet.publishedAt"]
     #     return self.create_key_sorted_items(index, get_item_key_func)
 
@@ -335,14 +367,14 @@ class YouTubeStorage:
     # def test_get_publishedAt_sorted_items_in_date_range(self):
     #     dbTable = self.snippets_table
     #     all_snippet_dbItems = dbTable.scan_items("Snippets")
-    #     prop_name = "snippit.publishedAt"
+    #     attr_name = "snippit.publishedAt"
     #     date_sorted_dbItems = self.create_publishedAt_sorted_items(all_snippet_dbItems)
-    #     # find two random datetimes using prop_name "snippit.publishedAt"
+    #     # find two random datetimes using attr_name "snippit.publishedAt"
     #     random_etags = [] 
     #     random_dbItem_0 = random_etags.append(random.choice(date_sorted_dbItems))
     #     random_dbItem_1 = random_etags.append(random.choice(date_sorted_dbItems))
-    #     from_date = min(random_dbItem_0[prop_name], random_dbItem_1[prop_name])
-    #     to_date = max(random_dbItem_0[prop_name], random_dbItem_1[prop_name])
+    #     from_date = min(random_dbItem_0[attr_name], random_dbItem_1[attr_name])
+    #     to_date = max(random_dbItem_0[attr_name], random_dbItem_1[attr_name])
     #     inrange_snipped_dbItems = self.get_publishedAt_sorted_items_in_date_range(
     #         all_snippet_dbItems, from_date, to_date)
     #     print(f"all_snippet_dbItems:{len(all_snippet_dbItems)}")
@@ -350,7 +382,7 @@ class YouTubeStorage:
     #     print(f"fromDate:{from_date.isoformat()}")
     #     print(f"toDate:{to_date.isoformat()}")
     #     for dbItem in inrange_snipped_dbItems:
-    #         print(f"dbItem.{prop_name}:{dbItem[prop_name]}")
+    #         print(f"dbItem.{attr_name}:{dbItem[attr_name]}")
 
 
 if __name__ == "__main__":

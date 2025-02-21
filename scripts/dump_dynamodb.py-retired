@@ -5,7 +5,7 @@ import os
 # Add the src directory to the sys.path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from youtube_table import YouTubeTable
+from youtube.youtube_table import YouTubeTable
 
 def main():
     parser = argparse.ArgumentParser(description='Dump DynamoDB table.')
