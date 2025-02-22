@@ -64,19 +64,19 @@ class DynamoDbFilterUtils:
         """
         # Test data
         test_dbItems = [
-            {"response.queryDetails.q":"SpaceX"},
-            {"response.queryDetails.q":"Agentful"},
-            {"response.queryDetails.q":"SpaceX"}
+            {"response.queryDetails_q":"SpaceX"},
+            {"response.queryDetails_q":"Agentful"},
+            {"response.queryDetails_q":"SpaceX"}
         ]
 
         # Select these dbAttrs among dbItems
-        test_select_by_dbAttrs = ["respnse.queryDetails.q"]
+        test_select_by_dbAttrs = ["respnse.queryDetails_q"]
 
         # Expected result after select by dbAttrs
         expected_filtered_dbItems = [
-            {"response.queryDetails.q":"SpaceX"},
-            {"response.queryDetails.q":"Agentful"},
-            {"response.queryDetails.q":"SpaceX"}
+            {"response.queryDetails_q":"SpaceX"},
+            {"response.queryDetails_q":"Agentful"},
+            {"response.queryDetails_q":"SpaceX"}
         ]
 
         # Now find distinct values for the given dbAttrs among all dbItems
@@ -87,7 +87,7 @@ class DynamoDbFilterUtils:
 
         # the expected sets of distinct values for each dbAttr
         expected_distinct_values = {}
-        expected_distinct_values['response.queryDetails.q'] = set(["SpaceX","Agentful"])
+        expected_distinct_values['response.queryDetails_q'] = set(["SpaceX","Agentful"])
 
         # compare the resulting sets of distinct values to the expected sets of disinct values
         for dbAttr in test_select_by_dbAttrs:

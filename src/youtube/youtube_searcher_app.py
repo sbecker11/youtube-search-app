@@ -1,7 +1,8 @@
 import json
 import logging
 from typing import List
-from time import sleep
+from time import sleep, time
+import threading
 
 import requests
 import uvicorn
@@ -106,7 +107,7 @@ class YouTubeSearcherApp:
         if len(responses) == 0:
             raise YouTubeSearcherAppException("No responses found in the database")
         # print(f"responses[0]: {DynamoDbJsonUtils.json_dumps(responses[0], indent=4)}")
-        query_attribute = 'queryDetails.q'
+        query_attribute = 'queryDetails_q'
         query_values = list(set([response[query_attribute] for response in responses]))
         if len(query_values) == 0:
             logger.warning(f"Zero query_values for {len(responses)} responses")
@@ -115,7 +116,7 @@ class YouTubeSearcherApp:
     def list_response_ids_with_query(self, query_value: str) -> List[str]:
         """ return a list of response_ids from requests with the given query_value """
         responses = self.storage.scan_table_items("Responses")
-        query_attribute = 'queryDetails.q'
+        query_attribute = 'queryDetails_q'
         distinct_response_ids = list(set([response['response_id'] for response in responses if response[query_attribute] == query_value]))
         if len(distinct_response_ids) == 0:
             logger.warning("Zero response_ids for query_value: %s", query_value)
@@ -124,7 +125,7 @@ class YouTubeSearcherApp:
     def list_snippets_with_response_id(self, response_id: str) -> List[DbItem]:
         """ return the list of snipped associated with the given response_id """
         if not self.storage.is_valid_response_id(response_id):
-            raise YouTubeSearcherAppException("response_id cannot be empty string")
+            raise YouTubeSearcherAppException("invalid response_id")
         snippets = self.storage.scan_table_items("Snippets")
         snippets_with_response_id = [snippet for snippet in snippets if snippet["response_id"] == response_id]
         if len(snippets_with_response_id) == 0:
@@ -158,19 +159,25 @@ class YouTubeSearcherApp:
             sleep(SLEEP_SECS)
         logger.error("returning False after %d failed attempts", MAX_FAILED_ATTEMPTS)
         return False
+    
 
-    @staticmethod
     def main():
         logger.info("Welcome to YouTubeSearcherApp")
         searcher = YouTubeSearcherApp.get_singleton()
 
         if APP_RUN_MODES['USE_SCANNER'] == 'once':
-            def doit():
-                searcher.verify_navigation_requests()
-                searcher.run_fast_api_app(host="localhost", port=8000)
-                logger.info("open FastAPI at http:/localhost:8000")
+            def log_custom_message():
+                sleep(1)  # Wait for 1 second to ensure Uvicorn has started
+                print("INFO:")
+                print("INFO:     See the OpenAPI docs at http://localhost:8000/docs (Ctrl+C to quit)")
 
-            searcher.scanner.run_once( doit )
+            def post_scan():
+                searcher.verify_navigation_requests()
+                threading.Thread(target=log_custom_message).start()
+                searcher.run_fast_api_app(host="localhost", port=8000)
+
+            searcher.scanner.run_once( post_scan )
+        
 
 
 if __name__ == "__main__":

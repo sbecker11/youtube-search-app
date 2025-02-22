@@ -13,7 +13,7 @@ def handle_error(message):
     input("Press any key to continue...")  # Python's equivalent to bash 'read -n 1'
     return 1
 
-def fetch_random_trending_topics(prev_file="previous_trends.txt") -> List[str]:
+def fetch_random_latest_trends(prev_file="latest_trends.txt") -> List[str]:
     """Fetch 3 random trending topics from Google Trends, avoiding repeats."""
     url = "https://trends.google.com/trends/trendingsearches/daily/rss?geo=US"
     
@@ -58,4 +58,4 @@ def fetch_random_trending_topics(prev_file="previous_trends.txt") -> List[str]:
 
 if __name__ == "__main__":
     print("Fetching 3 random trending topics from the top 100 (avoiding repeats)...")
-    sys.exit(fetch_random_trending_topics("my_previous_trends.txt"))
+    sys.exit(fetch_random_latest_trends("my_latest_trends.txt"))

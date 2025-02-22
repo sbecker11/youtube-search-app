@@ -351,7 +351,7 @@ class YouTubeTable:
             for dbItem in items:
                 if DynamoDbValidators.is_valid_dbItem(dbItem):  # Assuming this is your validator
 
-                    if not DynamoDbItemPreProcessor.is_preprocessed_item(dbItem):
+                    if not DynamoDbItemPreProcessor.is_marked_preprocessed_item(dbItem):
                         raise YouTubeTableException("Item is not a preprocessed item")
 
                     try:
@@ -374,8 +374,8 @@ class YouTubeTable:
                 for dbItem in items:
                     if DynamoDbValidators.is_valid_dbItem(dbItem):
 
-                        if not cls.is_preprocessed_item(dbItem):
-                            raise YouTubeTableException("Item is not a preprocessed item")
+                        if not cls.is_marked_preprocessed_item(dbItem):
+                            raise YouTubeTableException("Item is not a marked preprocessed item")
                         try:
                             dbBatch.put_item(Item=dbItem)
                             successful_writes.append(dbItem)

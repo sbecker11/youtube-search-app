@@ -1,50 +1,77 @@
 # Overview of the YouTube Search App project
 
 
-```tree
-.
+```  
+youtube-search-app
+├── APP_RUN_MODES.json
 ├── Dockerfile
 ├── README.md
 ├── data
-│   ├── query_response_head.json
-│   ├── query_response_item.json
-│   ├── query_scanner_config.json
-│   ├── responses_table_config.json
-│   └── snippets_table_config.json
-├── data_processor
-│   ├── Dockerfile
-│   └── app.py
+│   ├── query_response_head.json
+│   ├── query_response_item.json
+│   ├── query_scanner_config.json
+│   ├── responses_table_config.json
+│   ├── snippets_table_config.json
+│   └── table-storage.json
 ├── dist
-│   └── youtube-search-api.egg-info
-│       ├── PKG-INFO
-│       ├── SOURCES.txt
-│       ├── dependency_links.txt
-│       └── top_level.txt
-├── docker-compose-dynamodb-only.yml
+│   └── youtube-search-api.egg-info
+│       ├── PKG-INFO
+│       ├── SOURCES.txt
+│       ├── dependency_links.txt
+│       └── top_level.txt
 ├── docker-compose.yml
+├── docs
+│   ├── index.html
+│   ├── openapi.js
+│   ├── openapi.json
+│   └── redoc.html
 ├── jest.config.js
 ├── localstack.pid
+├── latest_trends.txt
 ├── requirements.txt
-├── responses-clipped.json
-├── responses.scan
 ├── scripts
-│   ├── count-tables
-│   ├── count_tables.py
-│   ├── generate-docs
-│   ├── generate-docs-with-redoc
-│   ├── run-app
-│   ├── run-docker-compose.scpt
-│   ├── run-dynamo
-│   └── run-pytest
+│   ├── activate
+│   ├── aws-test-table-create
+│   ├── aws-test-table-delete
+│   ├── aws-test-table-delete-item
+│   ├── aws-test-table-put-item
+│   ├── aws-test-table-run-tests
+│   ├── aws-test-table-scan
+│   ├── aws-test-table-update-item
+│   ├── count-tables
+│   ├── count-tables-items
+│   ├── delete-tables
+│   ├── dump-tables
+│   ├── fetch-random-topics
+│   ├── generate-open-api-docs
+│   ├── load-tables
+│   ├── run-app
+│   ├── run-dynamo
+│   ├── run-pytest
+│   ├── run-scanner
+│   └── scan-tables
+├── special-installations
+│   └── install-pyyaml-5.4.1
 ├── src
-│   ├── Dockerfile
-│   ├── __init__.py
-│   ├── dynamodb_utils.py
-│   ├── query_engine.py
-│   ├── query_scanner.py
-│   ├── youtube_searcher_app.py
-│   ├── youtube_storage.py
-│   └── youtube_table.py
+│   ├── dynamodb_utils
+│   │   ├── __init__.py
+│   │   ├── constants.py
+│   │   ├── dbtypes.py
+│   │   ├── dict_utils.py
+│   │   ├── filter_utils.py
+│   │   ├── item_utils.py
+│   │   ├── json_utils.py
+│   │   ├── latest_trends.py
+│   │   ├── table_utils.py
+│   │   └── validators.py
+│   └── youtube
+│       ├── __init__.py
+│       ├── query_engine.py
+│       ├── query_scanner.py
+│       ├── youtube_api_docs.py
+│       ├── youtube_searcher_app.py
+│       ├── youtube_storage.py
+│       └── youtube_table.py
 └── tests
     ├── __init__.py
     ├── conftest.py
@@ -59,13 +86,15 @@
 
 This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. `Dockerfile` and `docker-compose.yaml` reside at project-root, and are used to deploy assets to DockerDesktop.
 
-QueryEngine in `src/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. Query `request` and `response` data access operations are handled by the YouTubeStorage object. Example query response data may be found in /data/query_response_head.json and query_response_item.json
+QueryEngine in `src/youtube/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. Query `request` and `response` data access operations are handled by the `YouTubeStorage`  at `src/youtube/youtube_storage.py`. Example query response data may be found in `/data/query_response_head.json` and `query_response_item.json`
 
-Search query requests and responses are stored in the Responses dynamoDb tables by YouTubeStorage in `src/youtube_storage.py`. Each response record is given a unique primary key named `etag` and stored in the Dynamo `Responses` table. All snippets stored in a `Snippets` table and refer to foreign key `etag`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_table_config.json`
+Search query requests and responses are stored in the `Responses` dynamoDb tables by `YouTubeStorage` in `src/youtube_storage.py`. Each response record is given a unique primary key `reponse_id` and stored in the Dynamo `Responses` table. All snippets are stored in the `Snippets` table and refer to foreign key `response_id`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_table_config.json`
 
-YouTubStoreageApi from `src/youtube_searcher_app.py` uses FastAPI to handle queries made by project users against YouTubeStorage. OpenAI documentation is created during `docker-compose up --build` and resides at `/docs`.
+YouTubStoreageApi from `src/youtube/youtube_searcher_app.py` uses FastAPI to handle queries made by project users against `YouTubeStorage`. OpenAI documentation is created using `scripts\generate- `docker-compose up --build` and resides at `/docs`.
 
-QueryScanner in `src/query_scanner.py` is a singleton object that uses `croniter` and `schedule` to run a batch of queries to the YouTubeAPI via QueryEngine. The set to queries and the cron schedule are stored at `/data/query_scanner_config.json`.
+QueryScanner in `src/query_scanner.py` is a singleton object that uses `croniter` and `schedule` to run a batch of queries to the YouTubeAPI via QueryEngine. The scron schedule are stored at `/data/query_scanner_config.json`.
+
+The random set of queries is obtained from `scripts/fetch-latest-trends` which makes a curl request to `https://trends.google.com/trends/trendingsearches/daily/rss?geo=US` and stored at `latest-trends.txt`
 
 Credentials for YouTube and AWS are stored in a local `.env` file, which is never uploaded to the remote github repo.
 

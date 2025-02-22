@@ -1,0 +1,6 @@
+aws --endpoint-url=${DYNAMODB_URL} dynamodb delete-table \
+    --table-name Snippets 2>&1 | grep -q "ResourceNotFoundException"
+
+aws --endpoint-url=${DYNAMODB_URL} dynamodb delete-table \
+    --table-name Responses 2>&1 | grep -q "ResourceNotFoundException"
+

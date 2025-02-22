@@ -21,7 +21,7 @@ class DynamoDbItemPreProcessor:
         self.table_name = the_table_config["TableName"]
 
         # Default for table_name "Responses" is "response."
-        # Default for table_name "Snippets" is "snippet."
+        # Default for table_name "Snippets" is ""
         # Default for table_name "Parties" is "party."
         if not attribute_name_prefix:
             attribute_name_prefix = self.singularize(self.table_name.lower()) + '.'
@@ -135,7 +135,7 @@ class DynamoDbItemPreProcessor:
     @staticmethod
     def example_usage(a_snippets_table_config):
         # Usage
-        pre_processor = DynamoDbItemPreProcessor(a_snippets_table_config, attribute_name_prefix="snippet.")
+        pre_processor = DynamoDbItemPreProcessor(a_snippets_table_config, attribute_name_prefix="")
         raw_item = {
             'channelId': 'UCRAu2aXcH-B5h9SREfyhXuA',
             'publishedAt': '2025-02-05T11:35:37Z',
@@ -158,21 +158,21 @@ if __name__ == "__main__":
         "TableName": "Snippets",
         "KeySchema": [
             {
-                "AttributeName": "snippet.channelId",
+                "AttributeName": "channelId",
                 "KeyType": "HASH"
             },
             {
-                "AttributeName": "snippet.publishedAt",
+                "AttributeName": "publishedAt",
                 "KeyType": "RANGE"
             }
         ],
         "AttributeDefinitions": [
             {
-                "AttributeName": "snippet.channelId",
+                "AttributeName": "channelId",
                 "AttributeType": "S"
             },
             {
-                "AttributeName": "snippet.publishedAt",
+                "AttributeName": "publishedAt",
                 "AttributeType": "S"
             }
         ],

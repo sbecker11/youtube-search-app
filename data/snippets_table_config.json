@@ -2,21 +2,21 @@
   "TableName": "Snippets",
   "KeySchema": [
     {
-      "AttributeName": "snippet.channelId",
+      "AttributeName": "channelId",
       "KeyType": "HASH"
     },
     {
-      "AttributeName": "snippet.publishedAt",
+      "AttributeName": "publishedAt",
       "KeyType": "RANGE"
     }
   ],
   "AttributeDefinitions": [
     {
-      "AttributeName": "snippet.channelId",
+      "AttributeName": "channelId",
       "AttributeType": "S"
     },
     {
-      "AttributeName": "snippet.publishedAt",
+      "AttributeName": "publishedAt",
       "AttributeType": "S"
     }
   ],

@@ -10,7 +10,7 @@ from typing import Dict
 import croniter
 from dotenv import load_dotenv
 from youtube.query_engine import QueryEngine, QueryEngineException
-from dynamodb_utils.random_topics import fetch_random_trending_topics
+from dynamodb_utils.latest_trends import fetch_random_latest_trends
 
 from dynamodb_utils.json_utils import DynamoDbJsonUtils
 # global app run mode
@@ -117,17 +117,11 @@ class QueryScanner:
 
     def get_queries(self):
         """ return a random set of topics or the queries list from the config """
-        random_topics = fetch_random_trending_topics()
-        if len(random_topics) > max_queries_per_scan:
-            random_topics = random_topics[:max_queries_per_scan]
-        logger.info("using random topics %s", random_topics)
-        return random_topics
-        # else:
-        #   queries = self.config['queries']
-        #     if len(queries) > max_queries_per_scan:
-        #         queries = queries[:max_queries_per_scan]
-        #     logger.info("returning queries from config: %s", queries)
-        #     return queries  
+        latest_trends = fetch_random_latest_trends()
+        if len(latest_trends) > max_queries_per_scan:
+            latest_trends = latest_trends[:max_queries_per_scan]
+        logger.info("using random topics %s", latest_trends)
+        return latest_trends
 
     def run_once(self, listener=None):
         """ Execute run the queries search one time
