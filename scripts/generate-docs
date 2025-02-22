@@ -1,7 +1,5 @@
 #!/bin/bash
 
-#!/bin/bash
-
 # URL where your FastAPI app is running
 API_URL="http://localhost:8000/openapi.json"
 

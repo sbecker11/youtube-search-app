@@ -44,6 +44,13 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/youtube_storage.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: run list_queries",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/youtube/youtube_scanner.py",
+            "console": "integratedTerminal"
         }
     ]
 }

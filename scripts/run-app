@@ -4,4 +4,4 @@
 source scripts/activate
 
 # now start the app
-python src/youtube_searcher_app.py
+python src/youtube/youtube_searcher_app.py

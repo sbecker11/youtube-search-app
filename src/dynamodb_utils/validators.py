@@ -1,5 +1,6 @@
 import json
 from json import JSONDecodeError
+from dateutil import parser
 
 from dynamodb_utils.dbtypes import *
 

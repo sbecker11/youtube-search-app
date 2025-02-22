@@ -3,10 +3,15 @@ import logging
 from typing import Dict, Set, Any
 from decimal import Decimal
 from dateutil import parser
-
+from .constants import IS_PREPROCESSED
+from .dbtypes import *
+from .json_utils import DynamoDbJsonUtils
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+class DynamoDbItemPreProcessorException(Exception):
+    pass
 
 class DynamoDbItemPreProcessor:
     def __init__(self, the_table_config, attribute_name_prefix=None):
@@ -28,7 +33,32 @@ class DynamoDbItemPreProcessor:
                 self.key_prefixes[original_name] = self.attribute_name_prefix
                 self.type_mappings[original_name] = attr['AttributeType']
 
+
+    @staticmethod
+    def print_invalid_item(item):
+        print(f"Invalid item: {DynamoDbJsonUtils.json_dumps(item)}")
+
+    @staticmethod
+    def is_marked_preprocessed_item(item):
+        # no keys have dots
+        if not any('.' in key for key in item.keys()) and \
+            IS_PREPROCESSED in item and item[IS_PREPROCESSED] == True:
+            return True
+        return False
+    
+    @staticmethod
+    def set_marked_preprocessed_item(item):
+        item[IS_PREPROCESSED] = True
+        marked_item = {attr.replace('.', '_'):value for attr, value in item.items()}
+        if not DynamoDbItemPreProcessor.is_marked_preprocessed_item(marked_item):
+            DynamoDbItemPreProcessor.print_invalid_item(marked_item)
+            raise DynamoDbItemPreProcessorException("item is not marked as preprocessed")
+        return marked_item
+
     def get_preprocessed_item(self, raw_item):
+        if DynamoDbItemPreProcessor.is_marked_preprocessed_item(raw_item):
+            return raw_item
+
         pre_processed_item = {}
         for attr_name, value in raw_item.items():
             if attr_name in self.key_prefixes:
@@ -51,7 +81,12 @@ class DynamoDbItemPreProcessor:
             else:
                 # Non-key attributes remain unchanged
                 pre_processed_item[attr_name] = value
-        return pre_processed_item
+        
+        marked_item = DynamoDbItemPreProcessor.set_marked_preprocessed_item(pre_processed_item)
+        if not DynamoDbItemPreProcessor.is_marked_preprocessed_item(marked_item):
+            raise DynamoDbItemPreProcessorException("item is not marked as preprocessed")
+        return marked_item
+
 
     def to_number(self, value):
         try:

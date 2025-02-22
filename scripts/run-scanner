@@ -1,0 +1,9 @@
+#!/bin/bash
+
+source scripts/activate
+
+return 2
+
+
+# now start the scanner.main
+python src/youtube/youtube_scanner.py

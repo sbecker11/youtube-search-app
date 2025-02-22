@@ -97,26 +97,38 @@ class YouTubeSearcherApp:
         @self.fast_api_app.get("/snippets/{responseId}", response_model=List[DbItem])
         def list_snippets_with_response_id(responseId: str):
             return self.list_snippets_with_response_id(responseId)
-        
-    
+
     def list_queries(self) -> List[str]:
         """ scan all response items to create a list of all unique query values """
         responses = self.storage.scan_table_items("Responses")
-        print(f"respones[0]: {DynamoDbJsonUtils.json_dumps(responses[0], indent=4)}")
-        distinct_query_values = list(set([response['queryDetails.q'] for response in responses]))
-        return distinct_query_values
+
+        # debug response attributes
+        if len(responses) == 0:
+            raise YouTubeSearcherAppException("No responses found in the database")
+        # print(f"responses[0]: {DynamoDbJsonUtils.json_dumps(responses[0], indent=4)}")
+        query_attribute = 'queryDetails.q'
+        query_values = list(set([response[query_attribute] for response in responses]))
+        if len(query_values) == 0:
+            logger.warning(f"Zero query_values for {len(responses)} responses")
+        return query_values
 
     def list_response_ids_with_query(self, query_value: str) -> List[str]:
         """ return a list of response_ids from requests with the given query_value """
         responses = self.storage.scan_table_items("Responses")
-        distinct_response_ids = list(set([response['response_id'] for response in responses if response['queryDetails.q'] == query_value]))
+        query_attribute = 'queryDetails.q'
+        distinct_response_ids = list(set([response['response_id'] for response in responses if response[query_attribute] == query_value]))
+        if len(distinct_response_ids) == 0:
+            logger.warning("Zero response_ids for query_value: %s", query_value)
         return distinct_response_ids
 
     def list_snippets_with_response_id(self, response_id: str) -> List[DbItem]:
         """ return the list of snipped associated with the given response_id """
+        if not self.storage.is_valid_response_id(response_id):
+            raise YouTubeSearcherAppException("response_id cannot be empty string")
         snippets = self.storage.scan_table_items("Snippets")
         snippets_with_response_id = [snippet for snippet in snippets if snippet["response_id"] == response_id]
-        print(f"snippets_with_response_id[0]: {DynamoDbJsonUtils.json_dumps(snippets_with_response_id[0], indent=4)}")
+        if len(snippets_with_response_id) == 0:
+            logger.warning(f"Zero snippets found for response_id: {response_id}")
         return snippets_with_response_id
 
     def verify_navigation_requests(self) -> bool:
@@ -129,15 +141,16 @@ class YouTubeSearcherApp:
         SLEEP_SECS = 5.0
         while num_attempts <= MAX_FAILED_ATTEMPTS:
             try:
-                queries = self.storage.find_all_querys()
+                queries = self.list_queries()
                 assert len(queries) > 0
                 test_query = queries[0]
-                response_ids = self.storage.find_response_ids_by_query(test_query)
+                response_ids = self.list_response_ids_with_query(test_query)
+                print(f"@@@@ response_ids: {response_ids}")
                 assert len(response_ids) >  0
                 test_response_id = response_ids[0]
-                snippets = self.storage.find_snippets_by_response_id(test_response_id)
+                snippets = self.list_snippets_with_response_id(test_response_id)
                 assert len(snippets) > 0
-                logger.info("Storage functions verified successfully")
+                logger.info("List functions verified successfully")
                 return True
             except AssertionError as error:
                 logger.warning("Assertion error while verifying storage functions: %s", {error})

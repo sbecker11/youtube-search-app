@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sys
 import time
 from datetime import datetime
 from typing import Dict
@@ -23,7 +24,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 max_queries_per_scan = int(os.getenv("MAX_QUERIES_PER_SCAN", "10"))
-scanner_use_random_trending_topics = os.getenv("SCANNER_USE_RANDOM_TRENDING_TOPICS", "false").lower() == "true"
 
 # set this to true to skip query_engine setup during ininitialization
 
@@ -88,7 +88,7 @@ class QueryScanner:
         if not cron_string or not croniter.croniter.is_valid(cron_string):
             raise QueryScannerException("cron-string does not match the required pattern")
 
-    def run_queries(self, queries):
+    def run_the_queries(self, queries):
         """ call the query_engine to search on the give list queries
             that are not necessarily in the config.
         """
@@ -97,7 +97,7 @@ class QueryScanner:
                 max_queries_per_scan: %d" % (len(queries), max_queries_per_scan))
         for query in queries:
             try:
-                logger.info("Starting query %s:", {query})
+                logger.info("@@@ STARTING QUERY %s @@@:", {query})
                 self.query_engine.search(query)
                 logger.info("Finished query:%s", {query})
             except QueryEngineException as error:
@@ -116,26 +116,27 @@ class QueryScanner:
         return self.config['cron-string']
 
     def get_queries(self):
-        """ return a randmo set of topics or the queries list from the config """
-        if scanner_use_random_trending_topics:
-            random_topics = fetch_random_trending_topics()
-            if len(random_topics) > max_queries_per_scan:
-                random_topics = random_topics[:max_queries_per_scan]
-            logger.info("using random topics %s", random_topics)
-            return random_topics
-        
-        queries = self.config['queries']
-        if len(queries) > max_queries_per_scan:
-            queries = queries[:max_queries_per_scan]
-        logger.info("returning queries from config: %s", queries)
-        return queries
+        """ return a random set of topics or the queries list from the config """
+        random_topics = fetch_random_trending_topics()
+        if len(random_topics) > max_queries_per_scan:
+            random_topics = random_topics[:max_queries_per_scan]
+        logger.info("using random topics %s", random_topics)
+        return random_topics
+        # else:
+        #   queries = self.config['queries']
+        #     if len(queries) > max_queries_per_scan:
+        #         queries = queries[:max_queries_per_scan]
+        #     logger.info("returning queries from config: %s", queries)
+        #     return queries  
 
     def run_once(self, listener=None):
         """ Execute run the queries search one time
             and invoke the given listener if defined
         """
         try:
-            self.run_queries(self.get_queries())
+            queries = self.get_queries()
+            logger.info("&&& RUNNING QUERIES: %s &&&", queries)
+            self.run_the_queries(queries)
             if listener:
                 listener()
         except QueryEngineException as error:
@@ -146,7 +147,7 @@ class QueryScanner:
             raise error
 
     def start(self):
-        """ Start running the schedule that calls run_queries
+        """ Start running the schedule that calls run_the_queries
             according to the configured cron schedule.
             All times are tracked in utc timezone.
         """
@@ -163,7 +164,12 @@ class QueryScanner:
                 logger.info("*" * 80)
                 logger.info("execution starting at %s", utcnow.isoformat())
                 try:
-                    self.run_queries(self.get_queries())
+                    queries = self.get_queries()
+                    logger.info("running queries: %s", queries)
+                    self.run_the_queries(queries)
+                    if APP_RUN_MODES["USE_SCANNER"] == "once":
+                        self.set_run_status("Stopped")
+                        logger.info("scanner.run_once completed")
                 except QueryEngineException as error:
                     logger.info("scanner.run_queries failed with error:%s", {error})
                 next_execution = cron.get_next(datetime)
@@ -172,9 +178,9 @@ class QueryScanner:
 
 def main():
     scanner = QueryScanner.get_singleton()
-
+    queries = scanner.get_queries()
     logger.info("QueryScanner running queries:")
-    for query in scanner.get_queries():
+    for query in queries:
         logger.info(query)
 
     scanner.run_once(None)

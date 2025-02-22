@@ -12,6 +12,7 @@ from youtube.youtube_table import YouTubeTable
 from dynamodb_utils.json_utils import DynamoDbJsonUtils
 from dynamodb_utils.dict_utils import DynamoDbDictUtils
 from dynamodb_utils.dbtypes import DbTable, DbItem, DbIndex
+from dynamodb_utils.item_utils import DynamoDbItemPreProcessor
 
 load_dotenv()
 
@@ -113,6 +114,32 @@ class YouTubeStorage:
             if table.get_table_name() == table_name:
                 return table.count_items()
         return 0
+    
+    def create_response_id(self) -> str:
+        """ generates a unique response_id for each response """
+        response_id = str(uuid.uuid4())
+        # logger.info("Generated response_id: %s", response_id)
+        return response_id
+    
+    def is_valid_response_id(self, response_id: str) -> bool:
+        """ checks if the given response_id is a valid response_id """
+        if not response_id:
+            return False
+        if not isinstance(response_id, str):
+            return False
+        if len(response_id) != 36:
+            return False
+        num_hyphens = response_id.count('-')
+        if num_hyphens != 4:
+            return False
+        parts = response_id.split('-')
+        if len(parts) != 5:
+            return False
+        for part in parts:
+            if not part.isalnum():
+                return False
+        return True
+    
 
     def dump_tables(self, json_file:str):
         if not json_file or not json_file.endswith(".json"):
@@ -172,12 +199,12 @@ class YouTubeStorage:
 
         logger.info("all tables loaded successfully!")
 
-    def preprocess_response_row(self, attr_request: Dict[str, any], query_response: Dict[str, str]) -> Dict[str, any]:
+    def make_response_row(self, attr_request: Dict[str, any], query_response: Dict[str, str]) -> Dict[str, any]:
         """ This function takes a attr_request object and its query_response object to create a flat dict of
             attribute/value pairs. The attribute/value pairs of this dict are preprocessed and will then be
             stored as a row of attributes in the "Reponses" dynamodb table. Each row having a unique etag """
-        response_id = str(uuid.uuid4())  # Generate a unique primary key
-        print(f"response_id:{response_id}")
+        response_id = self.create_response_id()
+        # logger.info("Generated response_id: %s", response_id)")
         response_row = {
             'response_id': response_id,  # PK refernced by Snippets.response_id (FK)
             'etag': query_response.get('etag', ''),
@@ -198,17 +225,18 @@ class YouTubeStorage:
                 "query": attr_request.get('query', '')
             }
         }
-        logger.info("Generated response row with response_id: %s", response_id)
-        print(f"response_row:\n{json.dumps(response_row,indent=2)}")
-        pre_processed_response_row = self.responses_table.item_preprocessor.get_preprocessed_item(response_row)
+        # logger.info("Generated response row with response_id: %s", response_id)
+        # print(f"response_row:\n{json.dumps(response_row,indent=2)}")
         flattened_response_row = DynamoDbDictUtils.flatten_dict(
-                current_dict=pre_processed_response_row,
+                current_dict=response_row,
                 parent_key='')
-        print(f"flattened_response_row:\n{json.dumps(flattened_response_row,indent=2)}")
+        marked_resonse_row = DynamoDbItemPreProcessor.set_marked_preprocessed_item(flattened_response_row)
+        if not DynamoDbItemPreProcessor.is_marked_preprocessed_item(marked_resonse_row):
+            DynamoDbItemPreProcessor.print_invalid_item(marked_resonse_row)
+            raise YouTubeStorageException("flattened_response_row is not a preprocessed item")
+        return marked_resonse_row
 
-        return flattened_response_row
-
-    def preprocess_snippet_rows(self, query_response: Dict[str, any], response_id: str) -> List[Dict[str, any]]:
+    def make_snippet_rows(self, query_response: Dict[str, any], response_id: str) -> List[Dict[str, any]]:
         """ This function takes parent reponse_id and a query_response and extracts its list of associated
             items. Each item has a hierarchical snippet object. This object is transformed into a flattened
             dict of preprocessed attribute/value pairs. Each flattened dict will be stored as a row
@@ -237,28 +265,43 @@ class YouTubeStorage:
 
             # print(f"snippet_row:\n{json.dumps(snippet_row,indent=2)}")
             pre_processed_snippet_row = self.snippets_table.item_preprocessor.get_preprocessed_item(snippet_row)
-            # print(f"pre_processed_snippet_row:\n{json.dumps(pre_processed_snippet_row,indent=2)}")
+            if not DynamoDbItemPreProcessor.is_marked_preprocessed_item(pre_processed_snippet_row):
+                DynamoDbItemPreProcessor.print_invalid_item(pre_processed_snippet_row)
+                raise YouTubeStorageException("pre_processed_snippet_row is not a preprocessed item")
             pre_processed_snippet_rows.append(pre_processed_snippet_row)
 
-        logger.info("Generated %d pre_processed_snippet_rows for response ID: %s", len(pre_processed_snippet_rows), response_id)
+        # logger.info("Generated %d pre_processed_snippet_rows for response ID: %s", len(pre_processed_snippet_rows), response_id)
         return pre_processed_snippet_rows
 
     def add_query_request_and_response(self, query_request: Dict[str, any], query_response: Dict[str, any]):
         """ Adds a query request and its query response object to the database. """
-        logger.info("computing response_row from query_request and query_response.")
-        response_row = self.preprocess_response_row(query_request, query_response)
+        # logger.info("computing response_row from query_request and query_response.")
+        response_row = self.make_response_row(query_request, query_response)
+        if not DynamoDbItemPreProcessor.is_marked_preprocessed_item(response_row):
+            DynamoDbItemPreProcessor.print_invalid_item(response_row)
+            raise YouTubeStorageException("response_row is not a preprocessed item")
+        if 'response_id' not in response_row:
+            raise YouTubeStorageException(f"response_row does not contain a response_id response_row: {response_row}")
 
-        logger.info("computing snippet_rows from query_response.")
-        snippet_rows = self.preprocess_snippet_rows(query_response, response_row['response_id'])
+        response_id = response_row['response_id']
+
+        # logger.info("computing snippet_rows from query_response.")
+        snippet_rows = self.make_snippet_rows(query_response, response_row['response_id'])
+        for snippet_row in snippet_rows:
+            if not DynamoDbItemPreProcessor.is_marked_preprocessed_item(snippet_row):
+                DynamoDbItemPreProcessor.print_invalid_item(snippet_row)
+                raise YouTubeStorageException("snippet_row is not a preprocessed item")
+            if 'response_id' not in snippet_row:
+                raise YouTubeStorageException(f"snippet_row does not contain a response_id snippet_row: {snippet_row}")
 
         try:
             # Add response row to the responses table (not batched) in idempotent fashion
             self.responses_table.add_item(response_row, idempotent=True)
-            logger.info("Added response row with ID: %s", response_row['response_id'])
+            # logger.info("Added response row with ID: %s", response_row['response_id'])
 
             # Add snippet rows to the snippets table using a batch writer
             self.snippets_table.add_items(snippet_rows, idempotent=True)
-            logger.info("Added %d snippet rows for response ID: %s", len(snippet_rows), response_row['response_id'])
+            # logger.info("Added %d snippet rows for response ID: %s", len(snippet_rows), response_row['response_id'])
 
         except boto3.exceptions.Boto3Error as error:
             logger.error("Failed to add request and response to database: %s", str(error))
@@ -330,60 +373,6 @@ class YouTubeStorage:
             return dbTable.find_items_by_attribute(attribute)
         else:
             raise YouTubeStorageException("No attribute index or dbTable provided.")
-
-
-    # def create_publishedAt_sorted_items(self, index:DbIndex) -> List[DbItem]:
-    #     """Sort the index by the given attr_name."""
-    #     get_item_key = item["snippet.publishedAt"]
-    #     return self.create_key_sorted_items(index, get_item_key_func)
-
-    # def dbItem_filter(self, dbItem, start_time, end_time):
-    #     dbItem_time = dbItem['snippet.publishedAt']
-    #     return start_time <= dbItem_time and dbItem_time < endTime
-
-    # def get_filtered_dbItems(self, dbItems: List[DbItem], dbItem_filter):
-    #     return [dbItem for dbItem in dbItems if dbItem_filter(dbItem)]
-
-    # def find_items_by_etag(self, etag_index: DbIndex, etag: str) -> Dict[str, Any]:
-    #     """Find a dbItem by its etag."""
-    #     return etag_index.get(etag)
-
-
-    # def test_create_etag_indexed_items(self, table_name):
-    #     dbTable = self.find_dbTable_by_table_name(table_name)
-    #     dbItems = dbTable.scan_items(dbTable)
-    #     eTag_indexed_items = self.create_etag_indexed_items(dbItems)
-    #     all_etags = [dbItem['etag'] for dbItem in eTag_indexed_items]
-    #     num_random_etags = 3
-    #     random_etags = []
-    #     random_dbItems = []
-    #     for i in range(num_random_etags):
-    #         random_etags.append(random.choice(all_etags))
-    #     for etag in random_etags:
-    #         random_dbItems.append(eTag_indexed_items[eTag])
-    #     for random_dbItem in random_dbItems:
-    #         assert random_dbItem['etag'] in random_etags
-
-    # def test_get_publishedAt_sorted_items_in_date_range(self):
-    #     dbTable = self.snippets_table
-    #     all_snippet_dbItems = dbTable.scan_items("Snippets")
-    #     attr_name = "snippit.publishedAt"
-    #     date_sorted_dbItems = self.create_publishedAt_sorted_items(all_snippet_dbItems)
-    #     # find two random datetimes using attr_name "snippit.publishedAt"
-    #     random_etags = [] 
-    #     random_dbItem_0 = random_etags.append(random.choice(date_sorted_dbItems))
-    #     random_dbItem_1 = random_etags.append(random.choice(date_sorted_dbItems))
-    #     from_date = min(random_dbItem_0[attr_name], random_dbItem_1[attr_name])
-    #     to_date = max(random_dbItem_0[attr_name], random_dbItem_1[attr_name])
-    #     inrange_snipped_dbItems = self.get_publishedAt_sorted_items_in_date_range(
-    #         all_snippet_dbItems, from_date, to_date)
-    #     print(f"all_snippet_dbItems:{len(all_snippet_dbItems)}")
-    #     print(f"date_sorted_dbItems:{len(date_sorted_dbItems)}")
-    #     print(f"fromDate:{from_date.isoformat()}")
-    #     print(f"toDate:{to_date.isoformat()}")
-    #     for dbItem in inrange_snipped_dbItems:
-    #         print(f"dbItem.{attr_name}:{dbItem[attr_name]}")
-
 
 if __name__ == "__main__":
     storage = YouTubeStorage.get_singleton()

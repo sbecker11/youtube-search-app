@@ -1,9 +1,4 @@
 {
-    "queries": [
-        "SpaceX",
-        "Tiny LLMs",
-        "Agentful use cases"
-    ],
     "cron-string":  "0 * * * *",
     "comments": "run every hour at zero minutes"
 }
