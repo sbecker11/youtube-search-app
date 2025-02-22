@@ -1,6 +1,6 @@
 # Overview of the YouTube Search App project
 
-
+## Project Structure
 ```  
 youtube-search-app
 ├── APP_RUN_MODES.json
@@ -83,6 +83,17 @@ youtube-search-app
     └── test_youtube_table.py
 ```
 
+# Screenshots
+
+![01 - OpenApi HomePage](screenshots/01%20-%20OpenApi%20HomePage.png)
+![02 - Get queries](screenshots/02%20-%20Get%20queries.png)
+![03 - Get responses](screenshots/03%20-%20Get%20responses.png)
+![04 - Get snippets](screenshots/04%20-%20Get%20snippets.png)
+![05 - Get snippets bottom](screenshots/05%20-%20Get%20snippets%20bottom.png)
+
+
+# Description
+
 This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. `Dockerfile` and `docker-compose.yaml` reside at project-root, and are used to deploy assets to DockerDesktop.
 
 The `QueryEngine` singleton in `src/youtube/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. Query `request` and `response` data access operations are handled by the `YouTubeStorage` singleton at `src/youtube/youtube_storage.py`. Example query response data may be found in `/data/query_response_head.json` and `query_response_item.json`
@@ -105,6 +116,8 @@ GET /response_ids :  to Fetch all video responses for a given query
 GET /snippets     :  to Fetch all snippets for a given response_id  
 ```
 
+# Credentials
+
 Credentials for YouTube and AWS are stored in a local `.env` file, which is never uploaded to the remote github repo.
 
 The structure of the `.env` file is:
@@ -120,10 +133,13 @@ QUERY_SCANNER_CONFIG_PATH=./data/query_scanner_config.json
 MAX_QUERIES_PER_SCAN=3
 ```
 
+
+# Configuration
+
 Docker configuration files are found at project root. Python source modules are found at project root under the `src` directory. Pytest modules are found in `/tests` OpenAPI documentation files are found in `/docs`.
 
 
-# docker-compose.yml
+## docker-compose.yml
 ```
 services:
   localstack:
@@ -176,7 +192,7 @@ xyz/tmp/data/state
 ```
 
 
-## Useful Scripts
+# Useful Scripts and AWS Commands  
 
 This script is sourced to setup PYTHONPATH and to verify running conditions of DockerDesktop, localstack, and dynamodb:
 ```bash
