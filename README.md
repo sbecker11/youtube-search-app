@@ -120,7 +120,6 @@ youtube-search-app
 
 
 # Project Description
-
 This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. `Dockerfile` and `docker-compose.yaml` reside at project-root, and are used to deploy assets to DockerDesktop. See <a href="https://docs.localstack.cloud/user-guide/aws/dynamodb/" target="_blank">Get started with DynamoDB on LocalStack</a>.
 
 The `QueryEngine` singleton in `src/youtube/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. See < href="https://developers.google.com/youtube/v3/docs" target="_blank">YouTube Data API Reference</a>. Query `request` are created using Google's public google-api-python-client on github. See <a href="https://github.com/googleapis/google-api-python-client" target="_blank">google-api-python-client</a>. 
