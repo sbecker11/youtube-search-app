@@ -1,4 +1,19 @@
 # Overview of the YouTube Search App project
+This is a Proof of Concept web app intended for publication.  
+It illustrates how to use the following open-source components:  
+* YouTube Metadata RESTful API  
+* FastAPI
+* DockerDesktop
+* AWS DynamoDB on localstack 
+* Dockerfile and docker-compose.yml
+* Python project with Git and GitHub
+* Pylint, local GitHub Actions
+* Remote GitHub Actions
+* Snyk Vulnerability Scans
+* Restricted secrets in local .env file
+* FastAPIO-generated OpenAPI documentation
+* VsCode Launch modules
+* Unit testing with pytest, requests-mock, and aws_mock
 
 ## Project Structure
 ```  
@@ -85,36 +100,58 @@ youtube-search-app
 
 # Screenshots
 
-![01 - OpenApi HomePage](screenshots/01%20-%20OpenApi%20HomePage.png)
-![02 - Get queries](screenshots/02%20-%20Get%20queries.png)
-![03 - Get responses](screenshots/03%20-%20Get%20responses.png)
-![04 - Get snippets](screenshots/04%20-%20Get%20snippets.png)
-![05 - Get snippets bottom](screenshots/05%20-%20Get%20snippets%20bottom.png)
+## OpenAPI HomePage
+<img src="screenshots/01%20-%20OpenApi%20HomePage.png" alt="01 - OpenApi HomePage" style="width:50%;"> [back](#openapi-documentation)
+
+## Get Queries
+<img src="screenshots/02%20-%20Get%20queries.png" alt="02 - Get queries" style="width:50%;"> [back](#openapi-documentation)
+
+## Get Responses
+<img src="screenshots/03%20-%20Get%20responses.png" alt="03 - Get responses" style="width:50%;"> [back](#openapi-documentation)
+
+## Get Snippets
+<img src="screenshots/04%20-%20Get%20snippets.png" alt="04 - Get snippets" style="width:50%;"> [back](#openapi-documentation)
+
+## Get Snippets (continued)
+<img src="screenshots/05%20-%20Get%20snippets%20bottom.png" alt="05 - Get snippets bottom" style="width:50%;"> [back](#openapi-documentation)
+
+## Snyk Vulnerability Report
+<img src="screenshots/06%20-%20snyk%20vulnerability%20report.png" alt="06 - snyk vulnerability report" style="width:50%;"> [back](#snyk-vulnerability-reports)
 
 
-# Description
+# Project Description
 
-This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. `Dockerfile` and `docker-compose.yaml` reside at project-root, and are used to deploy assets to DockerDesktop.
+This docker-compose project creates a local-dynamodb image that runs in a localstack image on local DockerDesktop. `Dockerfile` and `docker-compose.yaml` reside at project-root, and are used to deploy assets to DockerDesktop. See <a href="https://docs.localstack.cloud/user-guide/aws/dynamodb/" target="_blank">Get started with DynamoDB on LocalStack</a>.
 
-The `QueryEngine` singleton in `src/youtube/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. Query `request` and `response` data access operations are handled by the `YouTubeStorage` singleton at `src/youtube/youtube_storage.py`. Example query response data may be found in `/data/query_response_head.json` and `query_response_item.json`
+The `QueryEngine` singleton in `src/youtube/query_engine.py` sends a variety of RESTful search queries to the YouTubeMetadataAPI. See < href="https://developers.google.com/youtube/v3/docs" target="_blank">YouTube Data API Reference</a>. Query `request` are created using Google's public google-api-python-client on github. See <a href="https://github.com/googleapis/google-api-python-client" target="_blank">google-api-python-client</a>. 
 
-Search query requests and responses are stored in the `Responses` table in dynamoDb by the `YouTubeStorage` singleton in `src/youtube_storage.py`. Each response record is given a unique primary key `reponse_id` and stored in the `Responses` table. All snippets with a given response are stored in the `Snippets` table and refer to foreign key `response_id`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_table_config.json`
+### REST API request and responses
+Query response Data is parsed and persisted to DynamoDB using the `YouTubeStorage` singleton at `src/youtube/youtube_storage.py`. Example query response data may be found in `/data/query_response_head.json` and `query_response_item.json` and shown below in sections [REST request section](#rest-request) and [REST response section](#rest-response)
+
+### Storing RESTful request and response data in DynamoDB
+The RESTful request and response data are stored in the `Responses` table in dynamoDb by the `YouTubeStorage` singleton in `src/youtube_storage.py`. Each response record is given a unique primary key `reponse_id` and stored in the `Responses` table. All snippets with a given response are stored in the `Snippets` table and refer to foreign key `response_id`. Dyanamo table definitions for these tables reside at `/data/responses_table_config.json` and `/data/snippets_table_config.json` and are also described below in sections
+[Response data stored to DynamoDB](#response-data-stored-to-dynamodb) and 
+[Snippet item stored to DynamoDB](#snippet-item-stored-to-dynamodb)
 
 The `QueryScanner` in `src/query_scanner.py` is a singleton object that uses `croniter` and `schedule` to run a batch of queries to the YouTubeAPI via the `QueryEngine`. The cron schedule is stored at `/data/query_scanner_config.json`.
 
-The random set of queries that `QueryScanner` submits is obtained from `src/dynamodb_utils/latest_trends.py::fetch-latest-trends` which submits a request to `https://trends.google.com/trends/trendingsearches/daily/rss?geo=US` and stores the resulting list at `latest-trends.txt`
+### List of latest trending topics
+The random set of queries that `QueryScanner` submits is obtained from `src/dynamodb_utils/latest_trends.py::fetch-latest-trends` which submits a request to `https://trends.google.com/trends/trendingsearches/daily/rss?geo=US` and stores the resulting list at `latest-trends.txt`. See [Example list](#example-list-of-latest-trending-topics).
 
 The `YouTubeSearcherApp` from `src/youtube/youtube_searcher_app.py` uses FastAPI to handle RESTful queries made by project users against `YouTubeStorage` to explore the DynamoDB tables. 
 
-OpenAI documentation is created at `docs/` using `scripts\generate-open-api`. These pages may be used to make the following searches:
+### OpenAPI Documentation
+OpenAPI documentation is created at `docs/` using `scripts\generate-open-api`. These pages may be used to make the following searches:
 
-```bash
-GET /queries      :  to Fetch a videos from YouTube metadata API for today trending topics  
+[GET /queries](#get-queries)      :  to Fetch a videos from YouTube metadata API for today trending topics  
 
-GET /response_ids :  to Fetch all video responses for a given query  
+[GET /response_ids](#get-responses) :  to Fetch all video responses for a given query  
 
-GET /snippets     :  to Fetch all snippets for a given response_id  
-```
+[GET /snippets](#get-snippets)     :  to Fetch all snippets for a given response_id  
+
+### Snyk Vulnerability Reports
+GitHub actions are used to maintain code quality and styling rules. Snyk vulnerability reports are made from the project's GitHub reponsitory. [See Snyk Report](#snyk-vulnerability-report)
+
 
 # Credentials
 
@@ -136,11 +173,24 @@ MAX_QUERIES_PER_SCAN=3
 
 # Configuration
 
-Docker configuration files are found at project root. Python source modules are found at project root under the `src` directory. Pytest modules are found in `/tests` OpenAPI documentation files are found in `/docs`.
+The docker configuration files `Dockerfile` and `docker-compose.yml`, are found at project root. Python source modules are found at project root under the `src` directory. Pytest modules are found in `/tests` OpenAPI documentation files are found in `/docs`.
 
+## Dockerfile
+```yaml
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5004"]
+```
 
 ## docker-compose.yml
-```
+```yaml
 services:
   localstack:
     image: localstack/localstack:latest
@@ -194,7 +244,7 @@ xyz/tmp/data/state
 
 # Useful Scripts and AWS Commands  
 
-This script is sourced to setup PYTHONPATH and to verify running conditions of DockerDesktop, localstack, and dynamodb:
+This bash script is sourced to setup `PYTHONPATH` and to verify running conditions of `DockerDesktop`, `localstack`, and `dynamodb`:
 ```bash
 scripts/activate
 ```
@@ -320,19 +370,166 @@ The reverse(@)[:10] gets the last 10 items.
 ## boto3 queries
 
 ### Query with sorting (assuming timestamp exists)
+```python
 response = table.query(
     KeyConditionExpression="partitionKey = :pk",
     ExpressionAttributeValues={":pk": "someValue"},
     ScanIndexForward=False,  # Fetch latest records first
     Limit=10
 )
+```
 ### Print results
+```python
 for item in response['Items']:
     print(item)
+```
 
+# YouTube Metadata API
 
+## Example list of latest trending topics  
+[back to overview](#list-of-latest-trending-topics)
 
+```txt
+Arsenal vs West Ham
+DOGE stimulus check
+Yankees
+Bivol vs Beterbiev 2
+Aston Villa vs Chelsea
+CQ' Brown
+Mexico Open
+SAG Awards 2025
+Warriors
+Real Madrid
+Purdue basketball
+1923 Season 2
+```
 
+## Random sample
+```txt
+Real Madrid
+```
 
+## REST request  
+JSON payload using the google-api-python-client. [Back to overview](#rest-api-request-and-responses)
 
+```json
+{
+    "subject": "Real Madrid",
+    "requestSubmittedAt": "2025-02-24T16:12:12.120874",
+    "part": "snippet",
+    "q": "Real Madrid",
+    "type": "video",
+    "maxResults": 25
+}
+```
+## REST response 
+JSON response payload from the  google-api-python-client, showing the first of 25 Snippets. [Back to overview](#rest-api-request-and-responses)
 
+```json
+{
+    "kind": "youtube#searchListResponse",
+    "etag": "HI3K8W7ypL0XdQZQlan516DHmcs",
+    "nextPageToken": "CBkQAA",
+    "regionCode": "US",
+    "pageInfo": {
+        "totalResults": 1000000,
+        "resultsPerPage": 25
+    },
+    "items": [
+        {
+            "kind": "youtube#searchResult",
+            "etag": "Q__CkrnJ7ITkyQxfQrvKsOe6_rk",
+            "id": {
+                "kind": "youtube#video",
+                "videoId": "ptodETCcIxw"
+            },
+            "snippet": {
+                "publishedAt": "2025-02-23T22:03:42Z",
+                "channelId": "UCWV3obpZVGgJ3j9FVhEjF2Q",
+                "title": "HIGHLIGHTS | Real Madrid 2-0 Girona | LaLiga 2024/25",
+                "description": "Ancelotti's side beat Girona and rounded off a fantastic week at the Bernab\u00e9u which saw them secure qualification for the last 16 ...",
+                "thumbnails": {
+                    "default": {
+                        "url": "https://i.ytimg.com/vi/ptodETCcIxw/default.jpg",
+                        "width": 120,
+                        "height": 90
+                    },
+                    "medium": {
+                        "url": "https://i.ytimg.com/vi/ptodETCcIxw/mqdefault.jpg",
+                        "width": 320,
+                        "height": 180
+                    },
+                    "high": {
+                        "url": "https://i.ytimg.com/vi/ptodETCcIxw/hqdefault.jpg",
+                        "width": 480,
+                        "height": 360
+                    }
+                },
+                "channelTitle": "Real Madrid",
+                "liveBroadcastContent": "none",
+                "publishTime": "2025-02-23T22:03:42Z"
+            }
+        },
+```
+
+## Response data stored to DynamoDB
+
+Each row in a DynamoDB table is a Python dict object. Name/value pairs are referred to as "Attributes" and each row is referred to as an "Item". We use pydantic typing terms "DbTable" a boto3 `dynamodb resource`, "DbItem" a `Dict[str,Any]`, and "DbIndex" a `Dict[str,DbItem]`. [back to overview](#storing-restful-request-and-response-data-in-dynamodb)
+
+```json
+{
+    "response_id": "744ae267-16ae-4590-88c0-e3ef68ce435b",
+    "etag": "HI3K8W7ypL0XdQZQlan516DHmcs",
+    "kind": "youtube#searchListResponse",
+    "nextPageToken": "CBkQAA",
+    "regionCode": "US",
+    "pageInfo_totalResults": 1000000,
+    "pageInfo_resultsPerPage": 25,
+    "requestSubmittedAt": "2025-02-24T16:12:12.120874",
+    "responseReceivedAt": "2025-02-24T16:22:36.041080",
+    "queryDetails_part": "snippet",
+    "queryDetails_q": "Real Madrid",
+    "queryDetails_type": "video",
+    "queryDetails_maxResults": 25,
+    "queryDetails_query": "",
+    "queryDetails_resultsPerPage": null,
+    "queryDetails_totalResults": null,
+    "resultsPerPage": null,
+    "q": null,
+    "part": null,
+    "maxResults": null,
+    "type": null,
+    "query": null,
+    "totalResults": null,
+    "is_preprocessed": true
+}
+```
+
+## Snippet item stored to DynamoDB 
+
+Here is the first of 25 `snippets` returned in the REST query response stored in the "Snippets" table in DynamoDB.  Note "response_id" is a foreign key to the "Resources" table. Dynamo does not handle relational database functionality like join, group by, referential integrity or special data types. All of these features are handled in Python boto3 code. [back to overview](#storing-restful-request-and-response-data-in-dynamodb)
+
+```json
+{
+    "response_id": "744ae267-16ae-4590-88c0-e3ef68ce435b",
+    "videoId": "ptodETCcIxw",
+    "publishedAt": "2025-02-23T22:03:42Z",
+    "channelId": "UCWV3obpZVGgJ3j9FVhEjF2Q",
+    "title": "HIGHLIGHTS | Real Madrid 2-0 Girona | LaLiga 2024/25",
+    "description": "Ancelotti's side beat Girona and rounded off a fantastic week at the Bernab\u00e9u which saw them secure qualification for the last 16 ...",
+    "channelTitle": "Real Madrid",
+    "tags": [],
+    "liveBroadcastContent": "none",
+    "publishTime": "2025-02-23T22:03:42Z",
+    "thumbnails_default_url": "https://i.ytimg.com/vi/ptodETCcIxw/default.jpg",
+    "thumbnails_default_width": 120,
+    "thumbnails_default_height": 90,
+    "thumbnails_medium_url": "https://i.ytimg.com/vi/ptodETCcIxw/mqdefault.jpg",
+    "thumbnails_medium_width": 320,
+    "thumbnails_medium_height": 180,
+    "thumbnails_high_url": "https://i.ytimg.com/vi/ptodETCcIxw/hqdefault.jpg",
+    "thumbnails_high_width": 480,
+    "thumbnails_high_height": 360,
+    "is_preprocessed": true
+}
+```
