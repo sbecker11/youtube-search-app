@@ -1,12 +1,11 @@
 import logging
 import os
-from dynamodb_utils.string_utils import DynamoDbStringUtils
 from unittest.mock import Mock, patch
 
 import pytest
 from dotenv import load_dotenv
 
-from query_scanner import QueryScanner, QueryScannerException
+from youtube.query_scanner import QueryScanner, QueryScannerException
 
 # Load environment variables from .env file
 load_dotenv()

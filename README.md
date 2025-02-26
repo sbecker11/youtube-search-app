@@ -137,7 +137,7 @@ The `QueryScanner` in `src/query_scanner.py` is a singleton object that uses `cr
 ### List of latest trending topics
 The random set of queries that `QueryScanner` submits is obtained from `src/dynamodb_utils/latest_trends.py::fetch-latest-trends` which submits a request to `https://trends.google.com/trends/trendingsearches/daily/rss?geo=US` and stores the resulting list at `latest-trends.txt`. See [Example list](#example-list-of-latest-trending-topics).
 
-The `YouTubeSearcherApp` from `src/youtube/youtube_searcher_app.py` uses FastAPI to handle RESTful queries made by project users against `YouTubeStorage` to explore the DynamoDB tables. 
+The `YouTubeSearcherApp` from `src/youtube/youtube_searcher_app.py` uses FastAPI to handle RESTful queries made by project users against `YouTubeStorage` to explore the DynamoDB tables. pip
 
 ### OpenAPI Documentation
 OpenAPI documentation is created at `docs/` using `scripts\generate-open-api`. These pages may be used to make the following searches:

@@ -1,7 +1,8 @@
 from moto import mock_aws2
 import boto3
 import pytest
-from youtube_storage import YouTubeStorage
+from youtube.youtube_storage import YouTubeStorage
+from boto3.dynamodb.conditions import Key
 
 def test_add_query_response(youtube_storage):
     query_engine = {

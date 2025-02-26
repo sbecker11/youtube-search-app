@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import requests
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 import random
 import os
 import sys

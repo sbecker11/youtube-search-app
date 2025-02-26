@@ -1,5 +1,5 @@
 import pytest
-from youtube_storage import YouTubeStorage  # Assuming this import is correct
+from youtube.youtube_storage import YouTubeStorage  # Assuming this import is correct
 
 def test_dynamodb_fixture(dynamodb):
     dynamodb = pytest.importorskip("boto3").resource('dynamodb')

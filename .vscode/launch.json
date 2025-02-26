@@ -51,6 +51,27 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/youtube/youtube_scanner.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "PyTest: QueryEngine",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "-s",
+                "${workspaceFolder}/tests/test_query_engine.py",
+                "--maxfail=1",
+                "--disable-warnings",
+                "-p pytest-cov",
+                "--cov=youtube.query_engine",
+                "--cov-report=term-missing",
+                "--cov-report=html"
+            ],
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}/tests"
+            }
         }
     ]
 }

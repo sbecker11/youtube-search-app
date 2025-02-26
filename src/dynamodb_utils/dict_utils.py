@@ -19,7 +19,16 @@ class DynamoDbDictUtils:
         for key, val in current_dict.items():
             new_key = f"{parent_key}{sep}{key}" if parent_key else key
             if isinstance(val, dict):
-                expected_key_set.update(val.keys())
+                if expected_key_set is not None:
+                    if key in expected_key_set:
+                        expected_key_set.remove(key)
+                if isinstance(val, Decimal):
+                    val = float(val)
+                elif isinstance(val, str):
+                    try:
+                        val = parser.parse(val)
+                    except (ValueError, TypeError): 
+                        pass
                 items.extend(DynamoDbDictUtils.flatten_dict(current_dict=val, parent_key=new_key, sep=sep, expected_key_set=expected_key_set).items())
             else:
                 items.append((new_key, val))

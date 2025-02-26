@@ -173,7 +173,9 @@ class YouTubeSearcherApp:
 
             def post_scan():
                 searcher.verify_navigation_requests()
-                threading.Thread(target=log_custom_message).start()
+                log_thread = threading.Thread(target=log_custom_message)
+                log_thread.start()
+                log_thread.join()
                 searcher.run_fast_api_app(host="localhost", port=8000)
 
             searcher.scanner.run_once( post_scan )

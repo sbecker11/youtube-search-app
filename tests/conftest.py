@@ -1,7 +1,7 @@
 import pytest
 from moto import mock_aws
 from boto3 import resource
-from youtube_storage import YouTubeStorage
+from youtube.youtube_storage import YouTubeStorage
 
 @pytest.fixture(scope="function")
 def dynamodb():

@@ -1,7 +1,7 @@
 import pytest
 import boto3
 from moto import mock_aws
-from youtube_table import YouTubeTable
+from youtube.youtube_table import YouTubeTable
 
 @pytest.fixture
 def dynamodb():
