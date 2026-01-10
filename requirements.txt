@@ -21,3 +21,5 @@ googleapis-common-protos==1.66.0
 # and source install-pyyaml-5.4.1
 
 
+urllib3>=2.6.3 # not directly required, pinned by Snyk to avoid a vulnerability
+werkzeug>=3.1.5 # not directly required, pinned by Snyk to avoid a vulnerability
